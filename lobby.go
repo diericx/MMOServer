@@ -112,7 +112,7 @@ type Shoot struct {
     Rotation int
 }
 
-const listenAddr = "192.168.1.18:7777"
+const listenAddr = "192.168.0.167:7777"
 
 const baseAddr = "http://192.168.1.18:3000/api/v1/"
 
@@ -648,7 +648,6 @@ func chat () {
 
                 var stringMessage = string(newByteArray)
                 var diff = 100 - len(stringMessage)
-                print(diff)
 
                 for i := 1; i < diff; i ++ {
                     stringMessage += "$"
