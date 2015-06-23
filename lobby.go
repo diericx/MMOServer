@@ -78,6 +78,20 @@ type Update struct {
     Rotation int
     Gear []int
     IsNPC bool
+    Bullets map[string][]string
+}
+
+type BulletUpdate struct {
+    ID string
+    Damage string
+    X float64 //change to float64
+    Y float64
+    Rotation int
+}
+
+type BulletPacket struct {
+    Action string
+    Bullets []*BulletUpdate
 }
 
 type EnemyUpdate struct {
@@ -511,9 +525,11 @@ func getDataFromPlayer(player *player) {
         var res = &Update{}
         // dec.Decode(&res)
 
+        // fmt.Printf("%v\n", buf[0:n])
+
         dec := codec.NewDecoder(player.RWC, &mh)
         dec = codec.NewDecoderBytes(buf[0:n], &mh)
-        dec.Decode(res)
+        err = dec.Decode(res)
 
         if err == nil {
             // fmt.Printf("%v", res.X)
@@ -521,13 +537,15 @@ func getDataFromPlayer(player *player) {
 
             //decoder.Decode(n)
             // json.Unmarshal([]byte(buf[0:n]), &res)
-            // fmt.Printf("\n x=%v", res.X )
+            //fmt.Printf(res.ID )
             if res.Action == "update" {
 
                 player.ID = res.ID
 
                 player.xMovement = res.X
                 player.yMovement = res.Y
+
+                //print("%v", player.xMovement)
 
                 // if (player.gear.cockpit == -1) {
                 //     var link = baseAddr + "get_users_item_set?user_id=" + player.ID
@@ -624,37 +642,51 @@ func chat () {
 
     var speedMod = 30
     for { 
+
+        //bulletMap := make([][]string, len(bullets))
+        bulletMap := make(map[string][]string);
+
+        //var bulletPackets []*BulletUpdate
+
+        //put all bullets into one array
+        i := 0
+        for _, bullet := range bullets {
+            // bulletMap[i] = make([]string, 4)
+            // bulletMap[i][0] = strconv.Itoa(0)
+            // bulletMap[i][0] = strconv.FormatFloat(bullet.rect.x, 'f', 6, 64)
+            // bulletMap[i][0] = strconv.FormatFloat(bullet.rect.y, 'f', 6, 64)
+            // bulletMap[i][0] = strconv.Itoa(bullet.rect.rotation)
+            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.Itoa(0))
+            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.FormatFloat(bullet.rect.x, 'f', 6, 64))
+            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.FormatFloat(bullet.rect.y, 'f', 6, 64))
+            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.Itoa(bullet.rect.rotation))
+            //create update packet
+            // newBulletPacket := &BulletUpdate{
+            //     ID: bullet.ID,
+            //     Damage: strconv.Itoa(0),
+            //     X: bullet.rect.x,
+            //     Y: bullet.rect.y,
+            //     Rotation: bullet.rect.rotation,
+            // }
+            // bulletPackets = append(bulletPackets, newBulletPacket)    
+            i = i + 1       
+        }
+
         for _, player := range players {
             //fmt.Printf("%v", player.ID)
 
-            for _, bullet := range bullets {
-                //create update packet
-                gear := []int{0, 0, 0, 0}
-                res1D := &Update{
-                    Action: "bulletUpdate",
-                    ID: bullet.ID,
-                    Health: strconv.Itoa(0),
-                    X: bullet.rect.x,
-                    Y: bullet.rect.y,
-                    Rotation: bullet.rect.rotation,
-                    Gear: gear,
-                    IsNPC: false,
-                }         
+            // var newByteArray []byte
+            // enc := codec.NewEncoder(player.RWC, &mh)
+            // enc = codec.NewEncoderBytes(&newByteArray, &mh)
+            // enc.Encode(bulletPacket)
 
-                var newByteArray []byte
-                enc := codec.NewEncoder(player.RWC, &mh)
-                enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                enc.Encode(res1D)
+            // var stringMessage = string(newByteArray)
+            // var diff = 100 - len(stringMessage)
 
-                var stringMessage = string(newByteArray)
-                var diff = 100 - len(stringMessage)
-
-                for i := 1; i < diff; i ++ {
-                    stringMessage += "$"
-                }  
-
-                go fmt.Fprintln(player.RWC, stringMessage)  
-            }
+            // for i := 1; i < diff; i ++ {
+            // }  
+            // //print(stringMessage, "/n")
+            // go fmt.Fprintln(player.RWC, stringMessage) 
 
             // sendEnemiesInArea(player)
 
@@ -682,6 +714,7 @@ func chat () {
                         Rotation: otherPlayer.rect.rotation,
                         Gear: gear,
                         IsNPC: false,
+                        Bullets: bulletMap,
                     }
 
                     var newByteArray []byte
