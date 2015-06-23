@@ -60,7 +60,7 @@ type rectangle struct {
 
 type bullet struct {
     shooter *player
-    ID string
+    ID int
     rect rectangle
 }
 
@@ -78,7 +78,9 @@ type Update struct {
     Rotation int
     Gear []int
     IsNPC bool
-    Bullets map[string][]string
+    BulletIDs []int
+    BulletXs []float64
+    BulletYs []float64
 }
 
 type BulletUpdate struct {
@@ -597,7 +599,7 @@ func getDataFromPlayer(player *player) {
 
                 // var newBullet bullet
                 newBullet := new (bullet)
-                newBullet.ID = strconv.Itoa( rand.Intn(1000) )
+                newBullet.ID = rand.Intn(1000)
                 newBullet.rect = createRect(resX, resY, 0.17, 0.5)
                 newBullet.rect.rotation = res.Rotation
                 newBullet.shooter = player
@@ -644,22 +646,19 @@ func chat () {
     for { 
 
         //bulletMap := make([][]string, len(bullets))
-        bulletMap := make(map[string][]string);
+        // bulletMap := make(map[string][]string);
+        bulletIDs := make([]int, len(bullets));
+        bulletXs := make([]float64, len(bullets));
+        bulletYs := make([]float64, len(bullets));
 
         //var bulletPackets []*BulletUpdate
 
         //put all bullets into one array
         i := 0
         for _, bullet := range bullets {
-            // bulletMap[i] = make([]string, 4)
-            // bulletMap[i][0] = strconv.Itoa(0)
-            // bulletMap[i][0] = strconv.FormatFloat(bullet.rect.x, 'f', 6, 64)
-            // bulletMap[i][0] = strconv.FormatFloat(bullet.rect.y, 'f', 6, 64)
-            // bulletMap[i][0] = strconv.Itoa(bullet.rect.rotation)
-            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.Itoa(0))
-            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.FormatFloat(bullet.rect.x, 'f', 6, 64))
-            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.FormatFloat(bullet.rect.y, 'f', 6, 64))
-            bulletMap[bullet.ID] = append(bulletMap[bullet.ID], strconv.Itoa(bullet.rect.rotation))
+            bulletIDs = append(bulletIDs, bullet.ID);
+            bulletXs = append(bulletXs, bullet.rect.x);
+            bulletYs = append(bulletYs, bullet.rect.y);
             //create update packet
             // newBulletPacket := &BulletUpdate{
             //     ID: bullet.ID,
@@ -714,7 +713,9 @@ func chat () {
                         Rotation: otherPlayer.rect.rotation,
                         Gear: gear,
                         IsNPC: false,
-                        Bullets: bulletMap,
+                        BulletIDs: bulletIDs,
+                        BulletXs: bulletXs,
+                        BulletYs: bulletYs,
                     }
 
                     var newByteArray []byte
