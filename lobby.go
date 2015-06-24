@@ -72,7 +72,7 @@ type Message struct {
 type Update struct {
     Action string
     ID string
-    Health string
+    Health int
     X float64 //change to float64
     Y float64
     Rotation int
@@ -128,7 +128,7 @@ type Shoot struct {
     Rotation int
 }
 
-const listenAddr = "192.168.0.167:7777"
+const listenAddr = "10.0.1.142:7777"
 
 const baseAddr = "http://192.168.1.18:3000/api/v1/"
 
@@ -161,7 +161,7 @@ func main() {
 
     //go serverRuntime()
     go moveBullets()
-    go moveEnemies()
+    //go moveEnemies()
     go chat()
     matchmake()
 }
@@ -342,11 +342,11 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 func moveBullets() {
     for {
 
-        for _, bullet := range bullets {
-            var bulletRadians float64 = (float64(bullet.rect.rotation+90) / 180.0) * 3.14159
-            bullet.rect.x = bullet.rect.x + (15 * 0.016 * math.Cos( bulletRadians ) )
-            bullet.rect.y = bullet.rect.y + (15 * 0.016 * math.Sin( bulletRadians ) )
-        }
+        // for _, bullet := range bullets {
+        //     var bulletRadians float64 = (float64(bullet.rect.rotation+90) / 180.0) * 3.14159
+        //     bullet.rect.x = bullet.rect.x + (15 * 0.016 * math.Cos( bulletRadians ) )
+        //     bullet.rect.y = bullet.rect.y + (15 * 0.016 * math.Sin( bulletRadians ) )
+        // }
 
         for _, player := range players {
             player.rect.x = player.rect.x + (player.xMovement*0.1)
@@ -575,18 +575,18 @@ func getDataFromPlayer(player *player) {
 
                 //test := string(buf[0:n])
             } else if res.Action == "shoot" {
-                res1D := &Shoot{
-                    Action: "shoot",
-                    ID: player.ID,
-                    X: res.X,
-                    Y: res.Y,
-                    Rotation: res.Rotation,
-                }  
+                // res1D := &Shoot{
+                //     Action: "shoot",
+                //     ID: player.ID,
+                //     X: res.X,
+                //     Y: res.Y,
+                //     Rotation: res.Rotation,
+                // }  
 
-                var newByteArray []byte
-                enc := codec.NewEncoder(player.RWC, &mh)
-                enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                enc.Encode(res1D)
+                // var newByteArray []byte
+                // enc := codec.NewEncoder(player.RWC, &mh)
+                // enc = codec.NewEncoderBytes(&newByteArray, &mh)
+                // enc.Encode(res1D)
 
                 // fmt.Println(string(newByteArray))
                 //sendToEveryoneBut( string(newByteArray), player.RWC ) 
@@ -655,10 +655,11 @@ func chat () {
 
         //put all bullets into one array
         i := 0
-        for _, bullet := range bullets {
-            bulletIDs = append(bulletIDs, bullet.ID);
-            bulletXs = append(bulletXs, bullet.rect.x);
-            bulletYs = append(bulletYs, bullet.rect.y);
+        //for _, bullet := range bullets {
+            // bulletIDs = append(bulletIDs, bullet.ID);
+            // bulletXs = append(bulletXs, bullet.rect.x);
+            // bulletYs = append(bulletYs, bullet.rect.y);
+
             //create update packet
             // newBulletPacket := &BulletUpdate{
             //     ID: bullet.ID,
@@ -669,7 +670,7 @@ func chat () {
             // }
             // bulletPackets = append(bulletPackets, newBulletPacket)    
             i = i + 1       
-        }
+        //}
 
         for _, player := range players {
             //fmt.Printf("%v", player.ID)
@@ -707,7 +708,7 @@ func chat () {
                     res1D := &Update{
                         Action: "playerUpdate",
                         ID: otherPlayer.ID,
-                        Health: strconv.Itoa(otherPlayer.Health),
+                        Health: otherPlayer.Health,
                         X: otherPlayer.rect.x,
                         Y: otherPlayer.rect.y,
                         Rotation: otherPlayer.rect.rotation,
@@ -729,6 +730,8 @@ func chat () {
                     for i := 1; i < diff; i ++ {
                         stringMessage += "$"
                     } 
+
+                    fmt.Printf("%v\n", len(stringMessage));
 
                     // dec := codec.NewDecoder(player.RWC, &mh)
                     // dec = codec.NewDecoderBytes(b, &mh)
