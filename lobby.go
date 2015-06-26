@@ -639,6 +639,17 @@ func CToGoString(c []byte) string {
     return string(c[:n+1])
 }
 
+func intToBinaryString(i int) string {
+    //create header
+    var value = int64(i)
+    binary := strconv.FormatInt(value, 2)
+    var diff = 8 - len(binary)
+    for i := 0; i < diff; i++ {
+        binary = "0" + binary;
+    }
+    return binary
+}
+
 // {"Action":"shoot", "ID":"87", "X":"0", "Y":"0", "Rotation":"22"}
 func chat () {
 
@@ -724,21 +735,15 @@ func chat () {
                     enc.Encode(res1D)
 
                     var stringMessage = string(newByteArray)
-                    var diff = 100 - len(stringMessage)
+                    //create header
+                    var header = intToBinaryString(len(stringMessage))
+                    //format message message
+                    stringMessage = header+stringMessage
+                    //send message
+                    fmt.Printf(stringMessage+"\n")
 
-                    for i := 1; i < diff; i ++ {
-                        stringMessage += "$"
-                    } 
-
-                    // dec := codec.NewDecoder(player.RWC, &mh)
-                    // dec = codec.NewDecoderBytes(b, &mh)
-                    // err2 := dec.Decode(&Update) 
-                    //send update packet
-                    // res1B, _ := json.Marshal(res1D)
-                    // go fmt.Fprintln(player.RWC, string(res1B)+"\n" )
-                    // fmt.Println( string(b) )
-                    // fmt.Printf(strconv.Itoa(len(stringMessage) ))
-                    go fmt.Fprintln(player.RWC, stringMessage)
+                    //go fmt.Fprintln(player.RWC, header)
+                    go fmt.Fprint(player.RWC, stringMessage)
                 } else {
                     res1F := &Message{
                         Action: "message",
@@ -751,13 +756,15 @@ func chat () {
                     enc.Encode(res1F)
 
                     var stringMessage = string(newByteArray)
-                    var diff = 100 - len(stringMessage)
+                    //---create header---
+                    var header = intToBinaryString(len(stringMessage))
+                    //---add header---
+                    stringMessage = header+stringMessage
+                    //send message
+                    fmt.Printf(stringMessage+"\n")
+                    //go fmt.Fprintln(player.RWC, header)
 
-                    for i := 1; i < diff; i ++ {
-                        stringMessage += "$"
-                    } 
-
-                    go fmt.Fprintln(player.RWC, stringMessage)
+                    go fmt.Fprint(player.RWC, stringMessage)
                 }
             }
         }
