@@ -81,6 +81,7 @@ type Update struct {
     BulletIDs []int
     BulletXs []float64
     BulletYs []float64
+    BulletRots []int
 }
 
 type BulletUpdate struct {
@@ -641,13 +642,23 @@ func CToGoString(c []byte) string {
 
 func intToBinaryString(i int) string {
     //create header
-    var value = int64(i)
-    binary := strconv.FormatInt(value, 2)
-    var diff = 8 - len(binary)
+    // var value = int64(i)
+    // binary := strconv.FormatInt(value, 2)
+    // var diff = 8 - len(binary)
+    // for i := 0; i < diff; i++ {
+    //     binary = "0" + binary;
+    // }
+    // return binary
+
+    var header = strconv.FormatInt(int64(i), 16)
+
+    var diff = 5 - len(header)
     for i := 0; i < diff; i++ {
-        binary = "0" + binary;
+        header = "0" + header;
     }
-    return binary
+
+    return header
+
 }
 
 // {"Action":"shoot", "ID":"87", "X":"0", "Y":"0", "Rotation":"22"}
@@ -661,6 +672,7 @@ func chat () {
         bulletIDs := make([]int, len(bullets));
         bulletXs := make([]float64, len(bullets));
         bulletYs := make([]float64, len(bullets));
+        bulletRots := make([]int, len(bullets));
 
         //var bulletPackets []*BulletUpdate
 
@@ -670,6 +682,7 @@ func chat () {
             bulletIDs = append(bulletIDs, bullet.ID);
             bulletXs = append(bulletXs, bullet.rect.x);
             bulletYs = append(bulletYs, bullet.rect.y);
+            bulletRots = append(bulletRots, bullet.rect.rotation);
             //create update packet
             // newBulletPacket := &BulletUpdate{
             //     ID: bullet.ID,
@@ -683,7 +696,7 @@ func chat () {
         }
 
         for _, player := range players {
-            //fmt.Printf("%v", player.ID)
+            fmt.Printf("%v\n", player.rect.x)
 
             // var newByteArray []byte
             // enc := codec.NewEncoder(player.RWC, &mh)
@@ -727,6 +740,7 @@ func chat () {
                         BulletIDs: bulletIDs,
                         BulletXs: bulletXs,
                         BulletYs: bulletYs,
+                        BulletRots: bulletRots,
                     }
 
                     var newByteArray []byte
@@ -739,10 +753,11 @@ func chat () {
                     var header = intToBinaryString(len(stringMessage))
                     //format message message
                     stringMessage = header+stringMessage
-                    //send message
-                    fmt.Printf(stringMessage+"\n")
+                    //print message
+                    // fmt.Printf("Header: %v\n", header);
+                    // fmt.Printf("Packet Length: %v\n", len(newByteArray));
 
-                    //go fmt.Fprintln(player.RWC, header)
+                    //send message
                     go fmt.Fprint(player.RWC, stringMessage)
                 } else {
                     res1F := &Message{
@@ -761,9 +776,6 @@ func chat () {
                     //---add header---
                     stringMessage = header+stringMessage
                     //send message
-                    fmt.Printf(stringMessage+"\n")
-                    //go fmt.Fprintln(player.RWC, header)
-
                     go fmt.Fprint(player.RWC, stringMessage)
                 }
             }
