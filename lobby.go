@@ -11,7 +11,6 @@ import (
     "math"
     "strconv"
     //"strings"
-    "encoding/json"
     //"net/http"
     "ugorji/go/codec"
 )
@@ -72,7 +71,7 @@ type Message struct {
 type Update struct {
     Action string
     ID string
-    Health string
+    Health int
     X float64 //change to float64
     Y float64
     Rotation int
@@ -145,6 +144,9 @@ var enemies []*Enemy
 
 var shouldQuit = false
 
+//CONSTANTS
+var PLAYER_LOAD_DIST float64 = 10
+
 func main() {
     rand.Seed(time.Now().Unix())
 
@@ -163,6 +165,7 @@ func main() {
     //go serverRuntime()
     go moveBullets()
     go moveEnemies()
+    go movePlayers()
     go chat()
     matchmake()
 }
@@ -204,32 +207,6 @@ func normalize(p point) point {
         p.y = p.y / magnitude
     }
     return p
-}
-
-func sendToEveryoneBut(toSend string, rwc io.ReadWriteCloser) {
-    for _, player := range players {
-        if (player.RWC != rwc) {
-            go fmt.Fprintln(player.RWC, toSend )
-        }
-    }
-}
-
-func sendToEveryone(toSend string) {
-    for _, player := range players {
-        go fmt.Fprintln(player.RWC, toSend )
-    }
-}
-
-func sendDamageTakenPacket(p *player) {
-    packet := &DamageTaken{
-        ID: p.ID,
-        Action: "damageTaken",
-        BulletID: 1,
-    }
-    // fmt.Printf(p.ID)
-    packetString, _ := json.Marshal(packet)
-    go sendToEveryone(string(packetString))
-    //go fmt.Fprintln(p.RWC, string(packetString) )
 }
 
 func sendEnemiesInArea(p *player) {
@@ -340,6 +317,18 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
     return !result && !result2 
 }
 
+func movePlayers() {
+    // for {
+    //     for _, player := range players {
+    //         player.rect.x = player.rect.x + (player.xMovement*0.1)
+    //         player.rect.y = player.rect.y + (player.yMovement*0.1)
+    //         //player.rect.rotation = player.Rotation
+    //     }
+    //     time.Sleep( (time.Second / time.Duration(60)) )
+    // }
+
+}
+
 func moveBullets() {
     for {
 
@@ -349,69 +338,62 @@ func moveBullets() {
             bullet.rect.y = bullet.rect.y + (15 * 0.016 * math.Sin( bulletRadians ) )
         }
 
-        for _, player := range players {
-            player.rect.x = player.rect.x + (player.xMovement*0.1)
-            player.rect.y = player.rect.y + (player.yMovement*0.1)
-            //player.rect.rotation = player.Rotation
-        }
-
-        for _, bullet := range bullets {
+        // for _, bullet := range bullets {
         
-            // rotateRectsPoints(player.rect, (float64(player.Rotation) / 180.0) * 3.14159 )
+        //     // rotateRectsPoints(player.rect, (float64(player.Rotation) / 180.0) * 3.14159 )
             
-                // fmt.Printf("\n %v, %v", bullet.rect.x, bullet.rect.y)
-            for _, player := range players {
-                if ( compareRects(player.rect, bullet.rect) == true && bullet.shooter != player ) {
-                    fmt.Printf("BULLET HIT Player")
-                    var toRemove int = -1
-                    for i, bullet2 := range bullets {
-                        if (bullet == bullet2) {
-                            toRemove = i
-                        }
-                    }
-                    bullets[toRemove] = bullets[len(bullets)-1]
-                    bullets = bullets[0:len(bullets)-1]
+        //         // fmt.Printf("\n %v, %v", bullet.rect.x, bullet.rect.y)
+        //     for _, player := range players {
+        //         if ( compareRects(player.rect, bullet.rect) == true && bullet.shooter != player ) {
+        //             fmt.Printf("BULLET HIT Player")
+        //             var toRemove int = -1
+        //             for i, bullet2 := range bullets {
+        //                 if (bullet == bullet2) {
+        //                     toRemove = i
+        //                 }
+        //             }
+        //             bullets[toRemove] = bullets[len(bullets)-1]
+        //             bullets = bullets[0:len(bullets)-1]
 
-                    player.Health = player.Health - 10
+        //             player.Health = player.Health - 10
 
-                    if (player.Health <= 0) {
-                        player.rect.x = 0
-                        player.rect.y = 0
-                        player.Health = 100
-                    }
+        //             if (player.Health <= 0) {
+        //                 player.rect.x = 0
+        //                 player.rect.y = 0
+        //                 player.Health = 100
+        //             }
 
-                    // sendDamageTakenPacket(player)
-                }
+        //         }
             
-            }
+        //     }
 
-            for _, e := range enemies { 
-                if ( compareRects(e.rect, bullet.rect) == true ) {
-                    fmt.Printf("BULLET HIT Enemy ")
-                    var toRemove int = -1
-                    for i, bullet2 := range bullets {
-                        if (bullet == bullet2) {
-                            toRemove = i
-                        }
-                    }
-                    bullets[toRemove] = bullets[len(bullets)-1]
-                    bullets = bullets[0:len(bullets)-1]
+        //     for _, e := range enemies { 
+        //         if ( compareRects(e.rect, bullet.rect) == true ) {
+        //             fmt.Printf("BULLET HIT Enemy ")
+        //             var toRemove int = -1
+        //             for i, bullet2 := range bullets {
+        //                 if (bullet == bullet2) {
+        //                     toRemove = i
+        //                 }
+        //             }
+        //             bullets[toRemove] = bullets[len(bullets)-1]
+        //             bullets = bullets[0:len(bullets)-1]
 
-                    e.health = e.health - 10
+        //             e.health = e.health - 10
 
-                    if (e.health <= 0) {
-                        var toRemove int = -1
-                        for i, e2 := range enemies {
-                            if (e == e2) {
-                                toRemove = i
-                            }
-                        }
-                        enemies[toRemove] = enemies[len(enemies)-1]
-                        enemies = enemies[0:len(enemies)-1]    
-                    }
-                }
-            }
-        }
+        //             if (e.health <= 0) {
+        //                 var toRemove int = -1
+        //                 for i, e2 := range enemies {
+        //                     if (e == e2) {
+        //                         toRemove = i
+        //                     }
+        //                 }
+        //                 enemies[toRemove] = enemies[len(enemies)-1]
+        //                 enemies = enemies[0:len(enemies)-1]    
+        //             }
+        //         }
+        //     }
+        // }
 
         time.Sleep( (time.Second / time.Duration(60)) )
     }
@@ -495,6 +477,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer.gear.cockpit = -1
 
     players = append(players, newPlayer)
+    fmt.Printf("APPENDING PLAYER")
     go getDataFromPlayer(newPlayer)
     
 }
@@ -576,6 +559,7 @@ func getDataFromPlayer(player *player) {
 
                 //test := string(buf[0:n])
             } else if res.Action == "shoot" {
+                player.Health = player.Health
                 res1D := &Shoot{
                     Action: "shoot",
                     ID: player.ID,
@@ -589,8 +573,7 @@ func getDataFromPlayer(player *player) {
                 enc = codec.NewEncoderBytes(&newByteArray, &mh)
                 enc.Encode(res1D)
 
-                // fmt.Println(string(newByteArray))
-                //sendToEveryoneBut( string(newByteArray), player.RWC ) 
+                //fmt.Println(string(newByteArray))
 
                 var resX float64
                 var resY float64
@@ -676,42 +659,20 @@ func chat () {
 
         //var bulletPackets []*BulletUpdate
 
-        //put all bullets into one array
-        i := 0
-        for _, bullet := range bullets {
-            bulletIDs = append(bulletIDs, bullet.ID);
-            bulletXs = append(bulletXs, bullet.rect.x);
-            bulletYs = append(bulletYs, bullet.rect.y);
-            bulletRots = append(bulletRots, bullet.rect.rotation);
-            //create update packet
-            // newBulletPacket := &BulletUpdate{
-            //     ID: bullet.ID,
-            //     Damage: strconv.Itoa(0),
-            //     X: bullet.rect.x,
-            //     Y: bullet.rect.y,
-            //     Rotation: bullet.rect.rotation,
-            // }
-            // bulletPackets = append(bulletPackets, newBulletPacket)    
-            i = i + 1       
-        }
-
         for _, player := range players {
-            fmt.Printf("%v\n", player.rect.x)
+            //put all bullets into one array that are CLOSE TO THE PLAYER
+            //WARNING: MAY CAUSE LAG
+            for _, bullet := range bullets {
 
-            // var newByteArray []byte
-            // enc := codec.NewEncoder(player.RWC, &mh)
-            // enc = codec.NewEncoderBytes(&newByteArray, &mh)
-            // enc.Encode(bulletPacket)
+                var dist = math.Sqrt( math.Pow(bullet.rect.x - player.rect.x, 2) + math.Pow(bullet.rect.y - player.rect.y, 2) )
+                if (dist <= PLAYER_LOAD_DIST) {
+                    bulletIDs = append(bulletIDs, bullet.ID);
+                    bulletXs = append(bulletXs, bullet.rect.x);
+                    bulletYs = append(bulletYs, bullet.rect.y);
+                    bulletRots = append(bulletRots, bullet.rect.rotation);
+                }
 
-            // var stringMessage = string(newByteArray)
-            // var diff = 100 - len(stringMessage)
-
-            // for i := 1; i < diff; i ++ {
-            // }  
-            // //print(stringMessage, "/n")
-            // go fmt.Fprintln(player.RWC, stringMessage) 
-
-            // sendEnemiesInArea(player)
+            }
 
             for _, otherPlayer := range players {
                 if (otherPlayer.ID != "") {
@@ -731,7 +692,7 @@ func chat () {
                     res1D := &Update{
                         Action: "playerUpdate",
                         ID: otherPlayer.ID,
-                        Health: strconv.Itoa(otherPlayer.Health),
+                        Health: otherPlayer.Health,
                         X: otherPlayer.rect.x,
                         Y: otherPlayer.rect.y,
                         Rotation: otherPlayer.rect.rotation,
