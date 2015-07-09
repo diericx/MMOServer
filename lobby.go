@@ -318,14 +318,14 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 }
 
 func movePlayers() {
-    // for {
-    //     for _, player := range players {
-    //         player.rect.x = player.rect.x + (player.xMovement*0.1)
-    //         player.rect.y = player.rect.y + (player.yMovement*0.1)
-    //         //player.rect.rotation = player.Rotation
-    //     }
-    //     time.Sleep( (time.Second / time.Duration(60)) )
-    // }
+    for {
+        for _, player := range players {
+            player.rect.x = player.rect.x + (player.xMovement*0.1)
+            player.rect.y = player.rect.y + (player.yMovement*0.1)
+            //player.rect.rotation = player.Rotation
+        }
+        time.Sleep( (time.Second / time.Duration(60)) )
+    }
 
 }
 
@@ -650,12 +650,15 @@ func chat () {
     var speedMod = 30
     for { 
 
-        //bulletMap := make([][]string, len(bullets))
-        // bulletMap := make(map[string][]string);
         bulletIDs := make([]int, len(bullets));
         bulletXs := make([]float64, len(bullets));
         bulletYs := make([]float64, len(bullets));
         bulletRots := make([]int, len(bullets));
+
+        otherPlayerIDs := make([]int, len(bullets));
+        otherPlayerXs := make([]float64, len(bullets));
+        otherPlayerYs := make([]float64, len(bullets));
+        otherPlayerRots := make([]int, len(bullets));
 
         //var bulletPackets []*BulletUpdate
 
@@ -715,6 +718,9 @@ func chat () {
                     //format message message
                     stringMessage = header+stringMessage
                     //print message
+                    if (player.ID == "1") {
+                        fmt.Printf(stringMessage + "\n")
+                    }
                     // fmt.Printf("Header: %v\n", header);
                     // fmt.Printf("Packet Length: %v\n", len(newByteArray));
 
