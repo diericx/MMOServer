@@ -22,6 +22,8 @@ type player struct {
     RWC io.ReadWriteCloser
     ID string
     Health int
+    Speed float64
+    Scraps int32
     X float64
     Y float64
     xMovement float64
@@ -75,6 +77,7 @@ type Update struct {
     Action string
     ID string
     Health int
+    Scraps int32
     X float64 //change to float64
     Y float64
     Rotation int
@@ -137,7 +140,7 @@ type Shoot struct {
     Rotation int
 }
 
-const listenAddr = "192.168.0.158:8888"
+const listenAddr = "192.168.0.167:7777"
 
 const baseAddr = "http://192.168.1.18:3000/api/v1/"
 
@@ -155,6 +158,7 @@ var shouldQuit = false
 
 //CONSTANTS
 var PLAYER_LOAD_DIST float64 = 20
+var ARENA_SIZE float64 = 100
 
 func main() {
     rand.Seed(time.Now().Unix())
@@ -329,8 +333,21 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 func movePlayers() {
     for {
         for _, player := range players {
-            player.rect.x = player.rect.x + (player.xMovement*0.03)
-            player.rect.y = player.rect.y + (player.yMovement*0.03)
+            player.rect.x = player.rect.x + (player.xMovement*player.Speed)
+            player.rect.y = player.rect.y + (player.yMovement*player.Speed)
+
+
+            if (player.rect.x >= ARENA_SIZE) {
+                player.rect.x = ARENA_SIZE
+            } else if (player.rect.x <= -ARENA_SIZE) {
+                player.rect.x = -ARENA_SIZE
+            }
+
+            if (player.rect.y >= ARENA_SIZE) {
+                player.rect.y = ARENA_SIZE
+            } else if (player.rect.y <= -ARENA_SIZE) {
+                player.rect.y = -ARENA_SIZE
+            }
             //player.rect.rotation = player.Rotation
         }
         time.Sleep( (time.Second / time.Duration(300)) )
@@ -343,8 +360,8 @@ func moveBullets() {
 
         for _, bullet := range bullets {
             var bulletRadians float64 = (float64(bullet.rect.rotation+90) / 180.0) * 3.14159
-            bullet.rect.x = bullet.rect.x + (15 * 0.016 * math.Cos( bulletRadians ) )
-            bullet.rect.y = bullet.rect.y + (15 * 0.016 * math.Sin( bulletRadians ) )
+            bullet.rect.x = bullet.rect.x + (15 * 0.116 * math.Cos( bulletRadians ) )
+            bullet.rect.y = bullet.rect.y + (15 * 0.116 * math.Sin( bulletRadians ) )
         }
 
         for _, bullet := range bullets {
@@ -370,6 +387,9 @@ func moveBullets() {
                         player.rect.x = 0
                         player.rect.y = 0
                         player.Health = 100
+
+                        //update shooter's scraps
+                        bullet.shooter.Scraps += 100
                     }
 
                 }
@@ -479,7 +499,9 @@ func match(c io.ReadWriteCloser) {
     newPlayer := new(player)
     newPlayer.RWC = c
     newPlayer.ID = ""
+    newPlayer.Speed = 0.03
     newPlayer.Health = 100
+    newPlayer.Scraps = 0
 
     newPlayer.rect = createRect(0, 0, 1, 1)
 
@@ -739,6 +761,7 @@ func chat () {
                     Action: "playerUpdate",
                     ID: player.ID,
                     Health: player.Health,
+                    Scraps: player.Scraps,
                     X: player.rect.x,
                     Y: player.rect.y,
                     Rotation: player.rect.rotation,
