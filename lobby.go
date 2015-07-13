@@ -371,15 +371,9 @@ func moveBullets() {
                 // fmt.Printf("\n %v, %v", bullet.rect.x, bullet.rect.y)
             for _, player := range players {
                 if ( compareRects(player.rect, bullet.rect) == true && bullet.shooter != player ) {
-                    fmt.Printf("BULLET HIT Player")
-                    var toRemove int = -1
-                    for i, bullet2 := range bullets {
-                        if (bullet == bullet2) {
-                            toRemove = i
-                        }
-                    }
-                    bullets[toRemove] = bullets[len(bullets)-1]
-                    bullets = bullets[0:len(bullets)-1]
+                    fmt.Printf("BULLET HIT Player\n")
+
+                    removeBulletFromList(bullet)
 
                     player.Health = player.Health - 10
 
@@ -503,7 +497,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer.Health = 100
     newPlayer.Scraps = 0
 
-    newPlayer.rect = createRect(0, 0, 1, 1)
+    newPlayer.rect = createRect(0, 0, 2, 2)
 
     newPlayer.gear.cockpit = -1
 
@@ -538,6 +532,20 @@ func removePlayerFromList(p *player) {
     }
     if (foundIndex != -1) {
         players = append(players[:foundIndex], players[foundIndex+1:]...)
+    }
+}
+
+func removeBulletFromList(b *bullet) {
+    var i = 0;
+    var foundIndex = -1;
+    for _, bullet := range bullets {
+        if (b == bullet) {
+            foundIndex = i;
+        }
+        i++
+    }
+    if (foundIndex != -1) {
+        bullets = append(bullets[:foundIndex], bullets[foundIndex+1:]...)
     }
 }
 
@@ -639,12 +647,18 @@ func getDataFromPlayer(player *player) {
                 newBullet.shooter = player
 
                 bullets = append(bullets, newBullet)            
-            } else if res.Action == "input" {
-                // player.rect.y = player.rect.y + (0.
-                // if (res.Y == 1) {
-                //     player.rect.y = player.rect.y + 0.5
-                // }
-            } 
+            } else if (res.Action == "upgradeSpeed") {
+                if (player.Scraps >= 100) {
+                    player.Speed += 0.01
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "jump") {
+                if (player.Scraps >= 200) {
+                    player.Scraps -= 200
+                    player.rect.x = res.X;
+                    player.rect.y = res.Y;
+                }
+            }
             // fmt.Printf( strconv.FormatFloat(res.X, 'f', 6, 64) )
         } else {
             shouldRemove = true
