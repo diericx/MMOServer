@@ -22,6 +22,11 @@ type player struct {
     RWC io.ReadWriteCloser
     ID string
     Health int
+    HealthCap int
+    HealthRegen int
+    Shield int
+    ShieldCap int
+    ShieldRegen int
     Speed float64
     Scraps int32
     X float64
@@ -77,6 +82,7 @@ type Update struct {
     Action string
     ID string
     Health int
+    Speed float64
     Scraps int32
     X float64 //change to float64
     Y float64
@@ -159,6 +165,7 @@ var shouldQuit = false
 //CONSTANTS
 var PLAYER_LOAD_DIST float64 = 20
 var ARENA_SIZE float64 = 100
+var SPEED_CAP float64 = 10
 
 func main() {
     rand.Seed(time.Now().Unix())
@@ -333,8 +340,8 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 func movePlayers() {
     for {
         for _, player := range players {
-            player.rect.x = player.rect.x + (player.xMovement*player.Speed)
-            player.rect.y = player.rect.y + (player.yMovement*player.Speed)
+            player.rect.x = player.rect.x + (player.xMovement* (player.Speed/100) )
+            player.rect.y = player.rect.y + (player.yMovement* (player.Speed/100) )
 
 
             if (player.rect.x >= ARENA_SIZE) {
@@ -493,7 +500,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer := new(player)
     newPlayer.RWC = c
     newPlayer.ID = ""
-    newPlayer.Speed = 0.03
+    newPlayer.Speed = 3
     newPlayer.Health = 100
     newPlayer.Scraps = 0
 
@@ -648,8 +655,8 @@ func getDataFromPlayer(player *player) {
 
                 bullets = append(bullets, newBullet)            
             } else if (res.Action == "upgradeSpeed") {
-                if (player.Scraps >= 100) {
-                    player.Speed += 0.01
+                if (player.Scraps >= 100 && player.Speed < SPEED_CAP) {
+                    player.Speed += 1
                     player.Scraps -= 100;
                 }
             } else if (res.Action == "jump") {
@@ -775,6 +782,7 @@ func chat () {
                     Action: "playerUpdate",
                     ID: player.ID,
                     Health: player.Health,
+                    Speed: player.Speed,
                     Scraps: player.Scraps,
                     X: player.rect.x,
                     Y: player.rect.y,
