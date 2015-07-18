@@ -22,15 +22,16 @@ type player struct {
     RWC io.ReadWriteCloser
     ID string
     Shooting bool
-    Health int
-    HealthCap int
-    HealthRegen int
-    Energy int
-    EnergyCap int
-    EnergyRegen int
-    Shield int
-    ShieldCap int
-    ShieldRegen int
+    Infamy int
+    Health float64
+    HealthCap float64
+    HealthRegen float64
+    Energy float64
+    EnergyCap float64
+    EnergyRegen float64
+    Shield float64
+    ShieldCap float64
+    ShieldRegen float64
     Damage int
     Speed float64
     WeaponCooldownCap float64
@@ -60,7 +61,7 @@ type Npc struct {
     rect rectangle
     ID int
     Type int
-    Health int
+    Health float64
     rotation int
 }
 
@@ -88,13 +89,14 @@ type Update struct {
     //client player data
     Action string
     ID string
+    Infamy int
     Shooting bool
-    Health int
-    HealthCap int
-    Energy int
-    EnergyCap int
-    Shield int
-    ShieldCap int
+    Health float64
+    HealthCap float64
+    Energy float64
+    EnergyCap float64
+    Shield float64
+    ShieldCap float64
     Speed float64
     Damage int
     Scraps int32
@@ -107,7 +109,7 @@ type Update struct {
     OtherPlayerIDs []string
     OtherPlayerXs []float64
     OtherPlayerYs []float64
-    OtherPlayerHlths []int
+    OtherPlayerHlths []float64
     //bullet data
     BulletIDs []int
     BulletXs []float64
@@ -118,7 +120,7 @@ type Update struct {
     NpcTypes []int
     NpcXs []float64
     NpcYs []float64
-    NpcHlths []int
+    NpcHlths []float64
 }
 
 type BulletUpdate struct {
@@ -176,6 +178,9 @@ var shouldQuit = false
 var PLAYER_LOAD_DIST float64 = 20
 var ARENA_SIZE float64 = 100
 var SPEED_CAP float64 = 10
+var SHIELD_CAP float64 = 50
+var SHIELD_REGEN_CAP float64 = 6
+var ENERGY_REGEN_CAP float64 = 6
 
 func main() {
     rand.Seed(time.Now().Unix())
@@ -420,9 +425,9 @@ func moveBullets() {
                     bulletRemoved = true
 
                     //Player takes damage to shield until zero, then takes health damage
-                    var diff = player.Shield - bullet.shooter.Damage
+                    var diff = player.Shield - float64(bullet.shooter.Damage)
                     if (diff >= 0) {
-                        player.Shield -= bullet.shooter.Damage
+                        player.Shield -= float64(bullet.shooter.Damage)
                     } else {
                         player.Shield = 0
                         player.Health += diff
@@ -451,7 +456,7 @@ func moveBullets() {
                         //Remove bullet once it hits a player
                         removeBulletFromList(bullet)
 
-                        npc.Health -= bullet.shooter.Damage
+                        npc.Health -= float64(bullet.shooter.Damage)
 
                         //player.Health = player.Health - 10
 
@@ -570,6 +575,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer := new(player)
     newPlayer.RWC = c
     newPlayer.ID = ""
+    newPlayer.Infamy = 0
     newPlayer.Health = 100
     newPlayer.HealthCap = 100
     newPlayer.HealthRegen = 1
@@ -578,7 +584,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer.EnergyRegen = 2
     newPlayer.Shield = 10
     newPlayer.ShieldCap = 10
-    newPlayer.ShieldRegen = 1 //per tenth of a second
+    newPlayer.ShieldRegen = 0.1 //per tenth of a second
     newPlayer.Damage = 10
     newPlayer.Speed = 3
     newPlayer.Scraps = 0
@@ -732,6 +738,16 @@ func getDataFromPlayer(player *player) {
                     player.Speed += 1
                     player.Scraps -= 100;
                 }
+            } else if (res.Action == "upgradeShieldCap") {
+                if (player.Scraps >= 100 && player.Shield < SHIELD_CAP) {
+                    player.ShieldCap += 10
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeEnergyRegen") {
+                if (player.Scraps >= 100 && player.EnergyRegen < ENERGY_REGEN_CAP) {
+                    player.EnergyRegen += 1
+                    player.Scraps -= 100;
+                }
             } else if (res.Action == "jump") {
                 if (player.Scraps >= 200) {
                     player.Scraps -= 200
@@ -802,13 +818,13 @@ func chat () {
         otherPlayerIDs := make([]string, 0);
         otherPlayerXs := make([]float64, 0);
         otherPlayerYs := make([]float64, 0);
-        otherPlayerHlths := make([]int, 0);
+        otherPlayerHlths := make([]float64, 0);
 
         npcIDs := make([]int, 0);
         npcTypes := make([]int, 0);
         npcXs := make([]float64, 0);
         npcYs := make([]float64, 0);
-        npcHlths := make([]int, 0);
+        npcHlths := make([]float64, 0);
 
         //var bulletPackets []*BulletUpdate
 
@@ -873,6 +889,7 @@ func chat () {
                 res1D := &Update{
                     Action: "playerUpdate",
                     ID: player.ID,
+                    Infamy: player.Infamy,
                     Health: player.Health,
                     HealthCap: player.HealthCap,
                     Energy: player.Energy,
