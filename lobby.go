@@ -21,13 +21,21 @@ type player struct {
     rect rectangle
     RWC io.ReadWriteCloser
     ID string
+    Shooting bool
     Health int
     HealthCap int
     HealthRegen int
+    Energy int
+    EnergyCap int
+    EnergyRegen int
     Shield int
     ShieldCap int
     ShieldRegen int
+    Damage int
     Speed float64
+    WeaponCooldownCap float64
+    WeaponCooldown float64
+    WeaponBulletCount int
     Scraps int32
     X float64
     Y float64
@@ -48,12 +56,11 @@ type gearSet struct {
     jets int
 }
 
-type Enemy struct {
+type Npc struct {
     rect rectangle
-    ID string
-    health int
-    x float64
-    y float64
+    ID int
+    Type int
+    Health int
     rotation int
 }
 
@@ -81,8 +88,15 @@ type Update struct {
     //client player data
     Action string
     ID string
+    Shooting bool
     Health int
+    HealthCap int
+    Energy int
+    EnergyCap int
+    Shield int
+    ShieldCap int
     Speed float64
+    Damage int
     Scraps int32
     X float64 //change to float64
     Y float64
@@ -99,6 +113,12 @@ type Update struct {
     BulletXs []float64
     BulletYs []float64
     BulletRots []int
+    //NPC data
+    NpcIDs []int
+    NpcTypes []int
+    NpcXs []float64
+    NpcYs []float64
+    NpcHlths []int
 }
 
 type BulletUpdate struct {
@@ -112,16 +132,6 @@ type BulletUpdate struct {
 type BulletPacket struct {
     Action string
     Bullets []*BulletUpdate
-}
-
-type EnemyUpdate struct {
-    Action string
-    ID string
-    Health int
-    X float64
-    Y float64
-    Rotation string
-    IsNPC bool
 }
 
 type Gear struct {
@@ -158,7 +168,7 @@ var partner = make(chan io.ReadWriteCloser)
 
 var players []*player
 var bullets []*bullet
-var enemies []*Enemy
+var npcs []*Npc
 
 var shouldQuit = false
 
@@ -169,6 +179,8 @@ var SPEED_CAP float64 = 10
 
 func main() {
     rand.Seed(time.Now().Unix())
+
+    spawnNPCs()
 
     // for i := 100; i < 110; i++ {
     //     newEnemy := new(Enemy)
@@ -186,6 +198,7 @@ func main() {
     go moveBullets()
     go moveEnemies()
     go movePlayers()
+    go updatePlayerStats()
     go chat()
     matchmake()
 }
@@ -229,32 +242,18 @@ func normalize(p point) point {
     return p
 }
 
-func sendEnemiesInArea(p *player) {
-    for _, e := range enemies {
-        packet := &EnemyUpdate{
-            Action: "update",
-            ID: e.ID,
-            Health: e.health,
-            X: e.rect.x,
-            Y: e.rect.y,
-            Rotation: strconv.Itoa(e.rotation),
-            IsNPC: true,
-        }
+func spawnNPCs() {
+    for i := 0; i < 110; i++ {
+        newNPC := new(Npc)
+        newNPC.ID = rand.Intn(10000)
+        newNPC.Type = 1
+        newNPC.Health = 50
+        newNPC.rect.rotation = 0
+        var x = ((rand.Float64() * ARENA_SIZE ) - (ARENA_SIZE/2))
+        var y = ((rand.Float64() * ARENA_SIZE ) -  (ARENA_SIZE/2))
+        newNPC.rect = createRect(x, y, 1, 1)
 
-        var newByteArray []byte
-        enc := codec.NewEncoder(p.RWC, &mh)
-        enc = codec.NewEncoderBytes(&newByteArray, &mh)
-        enc.Encode(packet)
-
-        var stringMessage = string(newByteArray)
-        stringMessage += "\n"
-        var diff = 100 - len(stringMessage)
-
-        for i := 1; i < diff; i ++ {
-            stringMessage += "$"
-        } 
-
-        go fmt.Fprintln(p.RWC, stringMessage)
+        npcs = append(npcs, newNPC)
     }
 }
 
@@ -337,6 +336,44 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
     return !result && !result2 
 }
 
+func updatePlayerStats() {
+    for {
+        for _, player := range players {
+
+            //update shield stat
+            if (player.Shield < player.ShieldCap) {
+                player.Shield += player.ShieldRegen
+                if (player.Shield > player.ShieldCap) {
+                    player.Shield = player.ShieldCap
+                }
+            }
+
+            //update energy stat
+            if (player.Energy < player.EnergyCap) {
+                player.Energy += player.EnergyRegen
+                if (player.Energy > player.EnergyCap) {
+                    player.Energy = player.EnergyCap
+                }
+            }
+
+            //shoot
+            if (player.Shooting && player.Energy == player.EnergyCap) {
+                //reset energy
+                player.Energy = 0
+                // spawn new bullet
+                newBullet := new (bullet)
+                newBullet.ID = rand.Intn(1000)
+                newBullet.rect = createRect(player.rect.x, player.rect.y, 0.17, 0.5)
+                newBullet.rect.rotation = player.rect.rotation
+                newBullet.shooter = player
+
+                bullets = append(bullets, newBullet) 
+            }
+        }
+        time.Sleep( (time.Second / time.Duration(100)) )
+    }
+}
+
 func movePlayers() {
     for {
         for _, player := range players {
@@ -372,17 +409,26 @@ func moveBullets() {
         }
 
         for _, bullet := range bullets {
+            var bulletRemoved = false
         
-            // rotateRectsPoints(player.rect, (float64(player.Rotation) / 180.0) * 3.14159 )
-            
-                // fmt.Printf("\n %v, %v", bullet.rect.x, bullet.rect.y)
+            // Checkl bullets for collision with players
             for _, player := range players {
                 if ( compareRects(player.rect, bullet.rect) == true && bullet.shooter != player ) {
-                    fmt.Printf("BULLET HIT Player\n")
 
+                    //Remove bullet once it hits a player
                     removeBulletFromList(bullet)
+                    bulletRemoved = true
 
-                    player.Health = player.Health - 10
+                    //Player takes damage to shield until zero, then takes health damage
+                    var diff = player.Shield - bullet.shooter.Damage
+                    if (diff >= 0) {
+                        player.Shield -= bullet.shooter.Damage
+                    } else {
+                        player.Shield = 0
+                        player.Health += diff
+                    }
+
+                    //player.Health = player.Health - 10
 
                     if (player.Health <= 0) {
                         player.rect.x = 0
@@ -395,6 +441,30 @@ func moveBullets() {
 
                 }
             
+            }
+
+            // Check bullets for collision with npcs
+            if (bulletRemoved == false) {
+                for _, npc := range npcs {
+                    if ( compareRects(npc.rect, bullet.rect) == true ) {
+
+                        //Remove bullet once it hits a player
+                        removeBulletFromList(bullet)
+
+                        npc.Health -= bullet.shooter.Damage
+
+                        //player.Health = player.Health - 10
+
+                        if (npc.Health <= 0) {
+                            removeNpcFromList(npc)
+
+                            //update shooter's scraps
+                            bullet.shooter.Scraps += 100
+                        }
+
+                    }
+                
+                }
             }
 
             // for _, e := range enemies { 
@@ -430,15 +500,15 @@ func moveBullets() {
 }
 
 func moveEnemies() {
-    for {
+    // for {
 
-        for _, e := range enemies {
-            e.rect.x = e.rect.x + ((rand.Float64() * 2) - 1)
-            e.rect.y = e.rect.y + ((rand.Float64() * 2) - 1)
-        }
+    //     for _, e := range enemies {
+    //         e.rect.x = e.rect.x + ((rand.Float64() * 2) - 1)
+    //         e.rect.y = e.rect.y + ((rand.Float64() * 2) - 1)
+    //     }
 
-        time.Sleep( (time.Second / time.Duration(10)) )
-    }
+    //     time.Sleep( (time.Second / time.Duration(10)) )
+    // }
 }
 
 func matchmake() {
@@ -496,13 +566,25 @@ func createRect(x float64, y float64, width float64, height float64) rectangle {
 }
 
 func match(c io.ReadWriteCloser) {
-    // var newPlayer player
+    // setup new player and its stats
     newPlayer := new(player)
     newPlayer.RWC = c
     newPlayer.ID = ""
-    newPlayer.Speed = 3
     newPlayer.Health = 100
+    newPlayer.HealthCap = 100
+    newPlayer.HealthRegen = 1
+    newPlayer.Energy = 50
+    newPlayer.EnergyCap = 50
+    newPlayer.EnergyRegen = 2
+    newPlayer.Shield = 10
+    newPlayer.ShieldCap = 10
+    newPlayer.ShieldRegen = 1 //per tenth of a second
+    newPlayer.Damage = 10
+    newPlayer.Speed = 3
     newPlayer.Scraps = 0
+    newPlayer.WeaponCooldownCap = 0.5
+    newPlayer.WeaponCooldown = 0
+    newPlayer.WeaponBulletCount = 1
 
     newPlayer.rect = createRect(0, 0, 2, 2)
 
@@ -556,6 +638,20 @@ func removeBulletFromList(b *bullet) {
     }
 }
 
+func removeNpcFromList(n *Npc) {
+    var i = 0;
+    var foundIndex = -1;
+    for _, npc := range npcs {
+        if (n == npc) {
+            foundIndex = i;
+        }
+        i++
+    }
+    if (foundIndex != -1) {
+        npcs = append(npcs[:foundIndex], npcs[foundIndex+1:]...)
+    }
+}
+
 func getDataFromPlayer(player *player) {
 
     for {
@@ -593,8 +689,13 @@ func getDataFromPlayer(player *player) {
 
                 player.ID = res.ID
 
+                player.Shooting = res.Shooting
+
                 player.xMovement = res.X
                 player.yMovement = res.Y
+
+                player.rect.rotation = res.Rotation
+            
 
                 //print("%v", player.xMovement)
 
@@ -625,35 +726,7 @@ func getDataFromPlayer(player *player) {
                 //test := string(buf[0:n])
             } else if res.Action == "shoot" {
                 player.Health = player.Health
-                res1D := &Shoot{
-                    Action: "shoot",
-                    ID: player.ID,
-                    X: res.X,
-                    Y: res.Y,
-                    Rotation: res.Rotation,
-                }  
-
-                var newByteArray []byte
-                enc := codec.NewEncoder(player.RWC, &mh)
-                enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                enc.Encode(res1D)
-
-                //fmt.Println(string(newByteArray))
-
-                var resX float64
-                var resY float64
-
-                resX = res.X
-                resY = res.Y
-
-                // var newBullet bullet
-                newBullet := new (bullet)
-                newBullet.ID = rand.Intn(1000)
-                newBullet.rect = createRect(resX, resY, 0.17, 0.5)
-                newBullet.rect.rotation = res.Rotation
-                newBullet.shooter = player
-
-                bullets = append(bullets, newBullet)            
+            
             } else if (res.Action == "upgradeSpeed") {
                 if (player.Scraps >= 100 && player.Speed < SPEED_CAP) {
                     player.Speed += 1
@@ -731,6 +804,12 @@ func chat () {
         otherPlayerYs := make([]float64, 0);
         otherPlayerHlths := make([]int, 0);
 
+        npcIDs := make([]int, 0);
+        npcTypes := make([]int, 0);
+        npcXs := make([]float64, 0);
+        npcYs := make([]float64, 0);
+        npcHlths := make([]int, 0);
+
         //var bulletPackets []*BulletUpdate
 
         for _, player := range players {
@@ -765,6 +844,19 @@ func chat () {
                     }
                 }
 
+                //get all data from NPCs
+                //WARNING: MAY CAUSE LAG
+                for _, npc := range npcs {
+                    var dist = math.Sqrt( math.Pow(npc.rect.x - player.rect.x, 2) + math.Pow(npc.rect.y - player.rect.y, 2) )
+                    if (dist <= PLAYER_LOAD_DIST) {
+                        npcIDs = append(npcIDs, npc.ID);
+                        npcTypes = append(npcTypes, npc.ID);
+                        npcXs = append(npcXs, npc.rect.x);
+                        npcYs = append(npcYs, npc.rect.y);
+                        npcHlths = append(npcHlths, npc.Health);
+                    }
+                }
+
                 //create new gear obj for the other players current gear set
                 // otherPlayersGear := gearSet{
                 //     cockpit: otherPlayer.gear.cockpit,
@@ -782,7 +874,13 @@ func chat () {
                     Action: "playerUpdate",
                     ID: player.ID,
                     Health: player.Health,
+                    HealthCap: player.HealthCap,
+                    Energy: player.Energy,
+                    EnergyCap: player.EnergyCap,
+                    Shield: player.Shield,
+                    ShieldCap: player.ShieldCap,
                     Speed: player.Speed,
+                    Damage: player.Damage,
                     Scraps: player.Scraps,
                     X: player.rect.x,
                     Y: player.rect.y,
@@ -797,6 +895,11 @@ func chat () {
                     BulletXs: bulletXs,
                     BulletYs: bulletYs,
                     BulletRots: bulletRots,
+                    NpcIDs: npcIDs,
+                    NpcTypes: npcTypes,
+                    NpcXs: npcXs,
+                    NpcYs: npcYs,
+                    NpcHlths: npcHlths,
                 }
 
                 var newByteArray []byte
@@ -811,7 +914,7 @@ func chat () {
                 stringMessage = header+stringMessage
                 //print message
                 if (player.ID == "1") {
-                    //fmt.Printf(stringMessage + "\n")
+                    fmt.Printf(stringMessage + "\n")
                 }
                 // fmt.Printf("Header: %v\n", header);
                 // fmt.Printf("Packet Length: %v\n", len(newByteArray));
