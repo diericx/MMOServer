@@ -95,8 +95,10 @@ type Update struct {
     HealthCap float64
     Energy float64
     EnergyCap float64
+    EnergyRegen float64
     Shield float64
     ShieldCap float64
+    ShieldRegen float64
     Speed float64
     Damage int
     Scraps int32
@@ -175,11 +177,11 @@ var npcs []*Npc
 var shouldQuit = false
 
 //CONSTANTS
-var PLAYER_LOAD_DIST float64 = 20
+var PLAYER_LOAD_DIST float64 = 30
 var ARENA_SIZE float64 = 100
 var SPEED_CAP float64 = 10
 var SHIELD_CAP float64 = 50
-var SHIELD_REGEN_CAP float64 = 6
+var SHIELD_REGEN_CAP float64 = 0.45
 var ENERGY_REGEN_CAP float64 = 6
 
 func main() {
@@ -256,7 +258,7 @@ func spawnNPCs() {
         newNPC.rect.rotation = 0
         var x = ((rand.Float64() * ARENA_SIZE ) - (ARENA_SIZE/2))
         var y = ((rand.Float64() * ARENA_SIZE ) -  (ARENA_SIZE/2))
-        newNPC.rect = createRect(x, y, 1, 1)
+        newNPC.rect = createRect(x, y, 3, 3)
 
         npcs = append(npcs, newNPC)
     }
@@ -592,7 +594,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer.WeaponCooldown = 0
     newPlayer.WeaponBulletCount = 1
 
-    newPlayer.rect = createRect(0, 0, 2, 2)
+    newPlayer.rect = createRect(0, 0, 3, 3)
 
     newPlayer.gear.cockpit = -1
 
@@ -748,6 +750,11 @@ func getDataFromPlayer(player *player) {
                     player.EnergyRegen += 1
                     player.Scraps -= 100;
                 }
+            } else if (res.Action == "upgradeShieldRegen") {
+                if (player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP) {
+                    player.ShieldRegen += 0.05
+                    player.Scraps -= 100;
+                }
             } else if (res.Action == "jump") {
                 if (player.Scraps >= 200) {
                     player.Scraps -= 200
@@ -894,8 +901,10 @@ func chat () {
                     HealthCap: player.HealthCap,
                     Energy: player.Energy,
                     EnergyCap: player.EnergyCap,
+                    EnergyRegen: player.EnergyRegen,
                     Shield: player.Shield,
                     ShieldCap: player.ShieldCap,
+                    ShieldRegen: player.ShieldRegen,
                     Speed: player.Speed,
                     Damage: player.Damage,
                     Scraps: player.Scraps,
