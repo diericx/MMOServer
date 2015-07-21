@@ -12,6 +12,9 @@ import (
     "math/rand"
     "math"
     "strconv"
+    "strings"
+    "bufio"
+    "os"
     //"strings"
     //"net/http"
     "ugorji/go/codec"
@@ -24,16 +27,18 @@ type player struct {
     Shooting bool
     Infamy int
     Health float64
-    HealthCap float64
-    HealthRegen float64
+    HealthCap int //
+    HealthRegen int //
     Energy float64
-    EnergyCap float64
-    EnergyRegen float64
+    EnergyCap int //
+    EnergyRegen int //
     Shield float64
-    ShieldCap float64
-    ShieldRegen float64
-    Damage int
-    Speed float64
+    ShieldCap int //
+    ShieldRegen int //
+    FireRate int //
+    FireRateCooldown int
+    Damage int //
+    Speed int //
     WeaponCooldownCap float64
     WeaponCooldown float64
     WeaponBulletCount int
@@ -48,6 +53,10 @@ type player struct {
 type point struct {
     x float64
     y float64
+}
+
+type baseStats struct {
+
 }
 
 type gearSet struct {
@@ -91,15 +100,17 @@ type Update struct {
     ID string
     Infamy int
     Shooting bool
+    FireRate int
     Health float64
-    HealthCap float64
-    Energy float64
-    EnergyCap float64
-    EnergyRegen float64
+    HealthCap int
+    HealthRegen int
+    Energy float64 
+    EnergyCap int
+    EnergyRegen int
     Shield float64
-    ShieldCap float64
-    ShieldRegen float64
-    Speed float64
+    ShieldCap int
+    ShieldRegen int
+    Speed int
     Damage int
     Scraps int32
     X float64 //change to float64
@@ -179,10 +190,29 @@ var shouldQuit = false
 //CONSTANTS
 var PLAYER_LOAD_DIST float64 = 30
 var ARENA_SIZE float64 = 100
-var SPEED_CAP float64 = 10
-var SHIELD_CAP float64 = 50
-var SHIELD_REGEN_CAP float64 = 0.45
-var ENERGY_REGEN_CAP float64 = 6
+var HEALTHCAP_CAP int = 10
+var HEALTH_REGEN_CAP int = 10
+var MOVE_SPEED_CAP int = 10
+var SHIELD_CAP int = 10
+var SHIELD_REGEN_CAP int = 10
+var ENERGY_CAP_CAP int = 10
+var ENERGY_REGEN_CAP int = 10
+var DAMAGE_CAP int = 10
+var BULLET_SPEED_CAP int = 10
+var FIRE_RATE_CAP int = 30
+
+var BASE_HEALTH_CAP_VALUE int = 100
+var BASE_HEALTH_REGEN_VALUE float64 = 0.001
+var BASE_DAMAGE_VALUE int = 10
+var BASE_SPEED_VALUE float64 = 3
+var BASE_ENERGY_CAP_VALUE float64 = 50
+var BASE_ENERGY_REGEN_VALUE float64 = 0.05
+var BASE_SHIELD_CAP_VALUE float64 = 10
+var BASE_SHIELD_REGEN_VALUE float64 = 0.01
+var BASE_FIRE_RATE_VALUE int = 500
+
+var HEALTH_MOD = 10
+var ENERGY_MOD = 10
 
 func main() {
     rand.Seed(time.Now().Unix())
@@ -202,6 +232,7 @@ func main() {
     // }
 
     //go serverRuntime()
+    go getConsoleInput()
     go moveBullets()
     go moveEnemies()
     go movePlayers()
@@ -262,6 +293,66 @@ func spawnNPCs() {
 
         npcs = append(npcs, newNPC)
     }
+}
+
+func getConsoleInput() {
+    for {
+        reader := bufio.NewReader(os.Stdin)
+        fmt.Print(">")
+        input, _ := reader.ReadString('\n')
+        input = strings.TrimSpace(input)
+        //do soemthing with it
+        var keywords []string
+        keywords = findAllKeywords(input)
+        //if the user types give ("give player scraps 100")
+        if (keywords[0] == "give") {
+            //make sure they input the correct amount of parameters
+            if ( len(keywords) ==  4) {
+                playerID := findPlayerIndexByID(keywords[1])
+                if (playerID >= 0) {
+                    if (keywords[2] == "scraps") {
+                        //try to convert value to string
+                        i, err := strconv.ParseInt(keywords[3], 10, 32)
+                        if err != nil {
+                            fmt.Println("\"" + keywords[3] + "\" is not a valid integer!")
+                        } else {
+                            players[playerID].Scraps += int32(i)
+                            fmt.Println("Succesfully gave player \"" + keywords[1] + "\" " + keywords[3] + " scraps!")
+                        }
+                    } else {
+                        fmt.Println("\"" + keywords[2] + "\" is not a known command!")
+                    }
+                } else {
+                    fmt.Println("Player with id \"" + keywords[1] + "\" not found!")
+                }
+            } else {
+                fmt.Println("Not enough parameters supplied for \"give\" command!")
+            }
+        } else {
+            fmt.Println("\"" + keywords[0] + "\" is not a known command!")
+        }
+    }
+}
+
+func findAllKeywords(val string) []string {
+    input := val
+    foundParams := make([]string, 0)
+
+    for {
+        i := strings.Index(input, " ")
+        if (i == -1) {
+            foundParams = append(foundParams, input)
+            break
+        } else {
+            beforeSpace := input[:i]
+            afterSpace := input[i+1:]
+            foundParams = append(foundParams, beforeSpace)
+            input = afterSpace
+        }
+
+    }
+
+    return foundParams
 }
 
 func compareRects(objRect rectangle, bulletRect rectangle) bool {
@@ -347,45 +438,66 @@ func updatePlayerStats() {
     for {
         for _, player := range players {
 
+            //update health stat
+            var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.HealthCap) )
+            var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.HealthRegen) )
+            if (player.Health < healthCap) {
+                player.Health += healthRegen
+                if (player.Health > healthCap) {
+                    player.Health = healthCap
+                }
+            }
+
             //update shield stat
-            if (player.Shield < player.ShieldCap) {
-                player.Shield += player.ShieldRegen
-                if (player.Shield > player.ShieldCap) {
-                    player.Shield = player.ShieldCap
+            var shieldCap = BASE_SHIELD_CAP_VALUE + (10 * float64(player.ShieldCap) )
+            var shieldRegen = BASE_SHIELD_REGEN_VALUE + (0.01 * float64(player.ShieldRegen) )
+            if (player.Shield < shieldCap) {
+                player.Shield += shieldRegen
+                if (player.Shield > shieldCap) {
+                    player.Shield = shieldCap
                 }
             }
 
             //update energy stat
-            if (player.Energy < player.EnergyCap) {
-                player.Energy += player.EnergyRegen
-                if (player.Energy > player.EnergyCap) {
-                    player.Energy = player.EnergyCap
+            var energyCap = BASE_ENERGY_CAP_VALUE + (10 * float64(player.EnergyCap) )
+            var energyRegen = BASE_ENERGY_REGEN_VALUE + (0.01 * float64(player.EnergyRegen) )
+            if (player.Energy < energyCap) {
+                player.Energy += energyRegen
+                if (player.Energy > energyCap) {
+                    player.Energy = energyCap
                 }
             }
 
             //shoot
-            if (player.Shooting && player.Energy == player.EnergyCap) {
-                //reset energy
-                player.Energy = 0
-                // spawn new bullet
-                newBullet := new (bullet)
-                newBullet.ID = rand.Intn(1000)
-                newBullet.rect = createRect(player.rect.x, player.rect.y, 0.17, 0.5)
-                newBullet.rect.rotation = player.rect.rotation
-                newBullet.shooter = player
+            var fireRate = BASE_FIRE_RATE_VALUE - (10 * player.FireRate )
+            if (player.Shooting) {
+                player.FireRateCooldown -= 1
 
-                bullets = append(bullets, newBullet) 
+                if (player.FireRateCooldown <= 0) {
+                    player.FireRateCooldown = fireRate
+
+                    // spawn new bullet
+                    newBullet := new (bullet)
+                    newBullet.ID = rand.Intn(1000)
+                    newBullet.rect = createRect(player.rect.x, player.rect.y, 0.17, 0.5)
+                    newBullet.rect.rotation = player.rect.rotation
+                    newBullet.shooter = player
+                    bullets = append(bullets, newBullet) 
+                }
+            } else {
+                player.FireRateCooldown = 0
             }
         }
-        time.Sleep( (time.Second / time.Duration(100)) )
+        time.Sleep( (time.Second / time.Duration(1000)) )
     }
 }
 
 func movePlayers() {
     for {
         for _, player := range players {
-            player.rect.x = player.rect.x + (player.xMovement* (player.Speed/100) )
-            player.rect.y = player.rect.y + (player.yMovement* (player.Speed/100) )
+            var speed = BASE_SPEED_VALUE + (0.5 * float64(player.Speed) ) 
+            player.rect.x = player.rect.x + (player.xMovement* (speed/100) )
+            player.rect.y = player.rect.y + (player.yMovement* (speed/100) )
 
 
             if (player.rect.x >= ARENA_SIZE) {
@@ -426,10 +538,13 @@ func moveBullets() {
                     removeBulletFromList(bullet)
                     bulletRemoved = true
 
+                    //calculate damage dealing
+                    var damage = BASE_DAMAGE_VALUE + (bullet.shooter.Damage * 5)
+
                     //Player takes damage to shield until zero, then takes health damage
-                    var diff = player.Shield - float64(bullet.shooter.Damage)
+                    var diff = player.Shield - float64(damage)
                     if (diff >= 0) {
-                        player.Shield -= float64(bullet.shooter.Damage)
+                        player.Shield -= float64(damage)
                     } else {
                         player.Shield = 0
                         player.Health += diff
@@ -458,7 +573,10 @@ func moveBullets() {
                         //Remove bullet once it hits a player
                         removeBulletFromList(bullet)
 
-                        npc.Health -= float64(bullet.shooter.Damage)
+                        //calculate damage dealing
+                        var damage = BASE_DAMAGE_VALUE + (bullet.shooter.Damage * 5)
+
+                        npc.Health -= float64(damage)
 
                         //player.Health = player.Health - 10
 
@@ -579,16 +697,18 @@ func match(c io.ReadWriteCloser) {
     newPlayer.ID = ""
     newPlayer.Infamy = 0
     newPlayer.Health = 100
-    newPlayer.HealthCap = 100
-    newPlayer.HealthRegen = 1
+    newPlayer.HealthCap = 0
+    newPlayer.HealthRegen = 0
     newPlayer.Energy = 50
-    newPlayer.EnergyCap = 50
-    newPlayer.EnergyRegen = 2
+    newPlayer.EnergyCap = 0
+    newPlayer.EnergyRegen = 0
     newPlayer.Shield = 10
-    newPlayer.ShieldCap = 10
-    newPlayer.ShieldRegen = 0.1 //per tenth of a second
-    newPlayer.Damage = 10
-    newPlayer.Speed = 3
+    newPlayer.ShieldCap = 0
+    newPlayer.ShieldRegen = 0 //per tenth of a second
+    newPlayer.FireRate = 0
+    newPlayer.FireRateCooldown = 0
+    newPlayer.Damage = 0
+    newPlayer.Speed = 0
     newPlayer.Scraps = 0
     newPlayer.WeaponCooldownCap = 0.5
     newPlayer.WeaponCooldown = 0
@@ -599,7 +719,7 @@ func match(c io.ReadWriteCloser) {
     newPlayer.gear.cockpit = -1
 
     players = append(players, newPlayer)
-    fmt.Printf("APPENDING PLAYER\n")
+    fmt.Printf("\nPlayer Joined!\n>")
     go getDataFromPlayer(newPlayer)
     
 }
@@ -618,7 +738,7 @@ func rotateRectsPoints(r rectangle, angle float64) {
     }
 }
 
-func removePlayerFromList(p *player) {
+func findPlayerIndex(p *player) int {
     var i = 0;
     var foundIndex = -1;
     for _, player := range players {
@@ -627,6 +747,24 @@ func removePlayerFromList(p *player) {
         }
         i++
     }
+    return foundIndex
+}
+
+func findPlayerIndexByID(pID string) int {
+    var i = 0;
+    var foundIndex = -1;
+    for _, player := range players {
+        if (player.ID == pID) {
+            foundIndex = i;
+        }
+        i++
+    }
+    return foundIndex
+}
+
+func removePlayerFromList(p *player) {
+    var foundIndex = findPlayerIndex(p);
+
     if (foundIndex != -1) {
         players = append(players[:foundIndex], players[foundIndex+1:]...)
     }
@@ -734,15 +872,34 @@ func getDataFromPlayer(player *player) {
                 //test := string(buf[0:n])
             } else if res.Action == "shoot" {
                 player.Health = player.Health
-            
+            } else if (res.Action == "upgradeHealthCap") {
+                if (player.Scraps >= 100 && player.HealthCap < HEALTHCAP_CAP) {
+                    player.HealthCap += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeHealthRegen") {
+                if (player.Scraps >= 100 && player.HealthRegen < HEALTH_REGEN_CAP) {
+                    player.HealthRegen += 1
+                    player.Scraps -= 100;
+                }
             } else if (res.Action == "upgradeSpeed") {
-                if (player.Scraps >= 100 && player.Speed < SPEED_CAP) {
+                if (player.Scraps >= 100 && player.Speed < MOVE_SPEED_CAP) {
                     player.Speed += 1
                     player.Scraps -= 100;
                 }
             } else if (res.Action == "upgradeShieldCap") {
-                if (player.Scraps >= 100 && player.Shield < SHIELD_CAP) {
-                    player.ShieldCap += 10
+                if (player.Scraps >= 100 && player.ShieldCap < SHIELD_CAP) {
+                    player.ShieldCap += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeShieldRegen") {
+                if (player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP) {
+                    player.ShieldRegen += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeEnergyCap") {
+                if (player.Scraps >= 100 && player.EnergyCap < ENERGY_CAP_CAP) {
+                    player.EnergyCap += 1
                     player.Scraps -= 100;
                 }
             } else if (res.Action == "upgradeEnergyRegen") {
@@ -752,7 +909,17 @@ func getDataFromPlayer(player *player) {
                 }
             } else if (res.Action == "upgradeShieldRegen") {
                 if (player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP) {
-                    player.ShieldRegen += 0.05
+                    player.ShieldRegen += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeDamage") {
+                if (player.Scraps >= 100 && player.Damage < DAMAGE_CAP) {
+                    player.Damage += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeFireRate") {
+                if (player.Scraps >= 100 && player.FireRate < FIRE_RATE_CAP) {
+                    player.FireRate += 1
                     player.Scraps -= 100;
                 }
             } else if (res.Action == "jump") {
@@ -897,8 +1064,10 @@ func chat () {
                     Action: "playerUpdate",
                     ID: player.ID,
                     Infamy: player.Infamy,
+                    FireRate: player.FireRate,
                     Health: player.Health,
                     HealthCap: player.HealthCap,
+                    HealthRegen: player.HealthRegen,
                     Energy: player.Energy,
                     EnergyCap: player.EnergyCap,
                     EnergyRegen: player.EnergyRegen,
