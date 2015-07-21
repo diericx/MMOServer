@@ -1,3 +1,5 @@
+//000bf? ►?Action?playerUpdate?BulletIDs??BulletRots??BulletXs??BulletYs??Gear??   ?Healthd?ID?1?IsNPCrOtherPlayerIDs??OtherPlayerRots??OtherPlayerXs??OtherPlayerYs??Rotation ?X?        ?Y?
+//0007e??Action?playerUpdate?BulletIDs??BulletRots??BulletXs??BulletYs??Gear??   ?Healthd?ID?1?IsNPC"Rotation ?X?        ?Y?
 package main 
 
 import (
@@ -10,8 +12,10 @@ import (
     "math/rand"
     "math"
     "strconv"
+    "strings"
+    "bufio"
+    "os"
     //"strings"
-    "encoding/json"
     //"net/http"
     "ugorji/go/codec"
 )
@@ -20,7 +24,25 @@ type player struct {
     rect rectangle
     RWC io.ReadWriteCloser
     ID string
-    Health int
+    Shooting bool
+    Infamy int
+    Health float64
+    HealthCap int //
+    HealthRegen int //
+    Energy float64
+    EnergyCap int //
+    EnergyRegen int //
+    Shield float64
+    ShieldCap int //
+    ShieldRegen int //
+    FireRate int //
+    FireRateCooldown int
+    Damage int //
+    Speed int //
+    WeaponCooldownCap float64
+    WeaponCooldown float64
+    WeaponBulletCount int
+    Scraps int32
     X float64
     Y float64
     xMovement float64
@@ -33,6 +55,10 @@ type point struct {
     y float64
 }
 
+type baseStats struct {
+
+}
+
 type gearSet struct {
     cockpit int
     lasers int
@@ -40,12 +66,11 @@ type gearSet struct {
     jets int
 }
 
-type Enemy struct {
+type Npc struct {
     rect rectangle
-    ID string
-    health int
-    x float64
-    y float64
+    ID int
+    Type int
+    Health float64
     rotation int
 }
 
@@ -70,17 +95,45 @@ type Message struct {
 }
 
 type Update struct {
+    //client player data
     Action string
     ID string
-    Health int
+    Infamy int
+    Shooting bool
+    FireRate int
+    Health float64
+    HealthCap int
+    HealthRegen int
+    Energy float64 
+    EnergyCap int
+    EnergyRegen int
+    Shield float64
+    ShieldCap int
+    ShieldRegen int
+    Speed int
+    Damage int
+    Scraps int32
     X float64 //change to float64
     Y float64
     Rotation int
     Gear []int
     IsNPC bool
+    //other player data
+    OtherPlayerIDs []string
+    OtherPlayerXs []float64
+    OtherPlayerYs []float64
+    OtherPlayerHlths []float64
+    //bullet data
     BulletIDs []int
     BulletXs []float64
     BulletYs []float64
+    BulletRots []int
+    //NPC data
+    NpcIDs []int
+    NpcTypes []int
+    NpcXs []float64
+    NpcYs []float64
+    NpcHlths []float64
 }
 
 type BulletUpdate struct {
@@ -94,16 +147,6 @@ type BulletUpdate struct {
 type BulletPacket struct {
     Action string
     Bullets []*BulletUpdate
-}
-
-type EnemyUpdate struct {
-    Action string
-    ID string
-    Health int
-    X float64
-    Y float64
-    Rotation string
-    IsNPC bool
 }
 
 type Gear struct {
@@ -128,7 +171,7 @@ type Shoot struct {
     Rotation int
 }
 
-const listenAddr = "10.0.1.142:7777"
+const listenAddr = "192.168.0.167:7777"
 
 const baseAddr = "http://192.168.1.18:3000/api/v1/"
 
@@ -140,12 +183,41 @@ var partner = make(chan io.ReadWriteCloser)
 
 var players []*player
 var bullets []*bullet
-var enemies []*Enemy
+var npcs []*Npc
 
 var shouldQuit = false
 
+//CONSTANTS
+var PLAYER_LOAD_DIST float64 = 30
+var ARENA_SIZE float64 = 100
+var HEALTHCAP_CAP int = 10
+var HEALTH_REGEN_CAP int = 10
+var MOVE_SPEED_CAP int = 10
+var SHIELD_CAP int = 10
+var SHIELD_REGEN_CAP int = 10
+var ENERGY_CAP_CAP int = 10
+var ENERGY_REGEN_CAP int = 10
+var DAMAGE_CAP int = 10
+var BULLET_SPEED_CAP int = 10
+var FIRE_RATE_CAP int = 30
+
+var BASE_HEALTH_CAP_VALUE int = 100
+var BASE_HEALTH_REGEN_VALUE float64 = 0.001
+var BASE_DAMAGE_VALUE int = 10
+var BASE_SPEED_VALUE float64 = 3
+var BASE_ENERGY_CAP_VALUE float64 = 50
+var BASE_ENERGY_REGEN_VALUE float64 = 0.05
+var BASE_SHIELD_CAP_VALUE float64 = 10
+var BASE_SHIELD_REGEN_VALUE float64 = 0.01
+var BASE_FIRE_RATE_VALUE int = 500
+
+var HEALTH_MOD = 10
+var ENERGY_MOD = 10
+
 func main() {
     rand.Seed(time.Now().Unix())
+
+    spawnNPCs()
 
     // for i := 100; i < 110; i++ {
     //     newEnemy := new(Enemy)
@@ -160,8 +232,11 @@ func main() {
     // }
 
     //go serverRuntime()
+    go getConsoleInput()
     go moveBullets()
-    //go moveEnemies()
+    go moveEnemies()
+    go movePlayers()
+    go updatePlayerStats()
     go chat()
     matchmake()
 }
@@ -205,59 +280,79 @@ func normalize(p point) point {
     return p
 }
 
-func sendToEveryoneBut(toSend string, rwc io.ReadWriteCloser) {
-    for _, player := range players {
-        if (player.RWC != rwc) {
-            go fmt.Fprintln(player.RWC, toSend )
+func spawnNPCs() {
+    for i := 0; i < 110; i++ {
+        newNPC := new(Npc)
+        newNPC.ID = rand.Intn(10000)
+        newNPC.Type = 1
+        newNPC.Health = 50
+        newNPC.rect.rotation = 0
+        var x = ((rand.Float64() * ARENA_SIZE ) - (ARENA_SIZE/2))
+        var y = ((rand.Float64() * ARENA_SIZE ) -  (ARENA_SIZE/2))
+        newNPC.rect = createRect(x, y, 3, 3)
+
+        npcs = append(npcs, newNPC)
+    }
+}
+
+func getConsoleInput() {
+    for {
+        reader := bufio.NewReader(os.Stdin)
+        fmt.Print(">")
+        input, _ := reader.ReadString('\n')
+        input = strings.TrimSpace(input)
+        //do soemthing with it
+        var keywords []string
+        keywords = findAllKeywords(input)
+        //if the user types give ("give player scraps 100")
+        if (keywords[0] == "give") {
+            //make sure they input the correct amount of parameters
+            if ( len(keywords) ==  4) {
+                playerID := findPlayerIndexByID(keywords[1])
+                if (playerID >= 0) {
+                    if (keywords[2] == "scraps") {
+                        //try to convert value to string
+                        i, err := strconv.ParseInt(keywords[3], 10, 32)
+                        if err != nil {
+                            fmt.Println("\"" + keywords[3] + "\" is not a valid integer!")
+                        } else {
+                            players[playerID].Scraps += int32(i)
+                            fmt.Println("Succesfully gave player \"" + keywords[1] + "\" " + keywords[3] + " scraps!")
+                        }
+                    } else {
+                        fmt.Println("\"" + keywords[2] + "\" is not a known command!")
+                    }
+                } else {
+                    fmt.Println("Player with id \"" + keywords[1] + "\" not found!")
+                }
+            } else {
+                fmt.Println("Not enough parameters supplied for \"give\" command!")
+            }
+        } else {
+            fmt.Println("\"" + keywords[0] + "\" is not a known command!")
         }
     }
 }
 
-func sendToEveryone(toSend string) {
-    for _, player := range players {
-        go fmt.Fprintln(player.RWC, toSend )
-    }
-}
+func findAllKeywords(val string) []string {
+    input := val
+    foundParams := make([]string, 0)
 
-func sendDamageTakenPacket(p *player) {
-    packet := &DamageTaken{
-        ID: p.ID,
-        Action: "damageTaken",
-        BulletID: 1,
-    }
-    // fmt.Printf(p.ID)
-    packetString, _ := json.Marshal(packet)
-    go sendToEveryone(string(packetString))
-    //go fmt.Fprintln(p.RWC, string(packetString) )
-}
-
-func sendEnemiesInArea(p *player) {
-    for _, e := range enemies {
-        packet := &EnemyUpdate{
-            Action: "update",
-            ID: e.ID,
-            Health: e.health,
-            X: e.rect.x,
-            Y: e.rect.y,
-            Rotation: strconv.Itoa(e.rotation),
-            IsNPC: true,
+    for {
+        i := strings.Index(input, " ")
+        if (i == -1) {
+            foundParams = append(foundParams, input)
+            break
+        } else {
+            beforeSpace := input[:i]
+            afterSpace := input[i+1:]
+            foundParams = append(foundParams, beforeSpace)
+            input = afterSpace
         }
 
-        var newByteArray []byte
-        enc := codec.NewEncoder(p.RWC, &mh)
-        enc = codec.NewEncoderBytes(&newByteArray, &mh)
-        enc.Encode(packet)
-
-        var stringMessage = string(newByteArray)
-        stringMessage += "\n"
-        var diff = 100 - len(stringMessage)
-
-        for i := 1; i < diff; i ++ {
-            stringMessage += "$"
-        } 
-
-        go fmt.Fprintln(p.RWC, stringMessage)
     }
+
+    return foundParams
 }
 
 func compareRects(objRect rectangle, bulletRect rectangle) bool {
@@ -339,77 +434,190 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
     return !result && !result2 
 }
 
+func updatePlayerStats() {
+    for {
+        for _, player := range players {
+
+            //update health stat
+            var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.HealthCap) )
+            var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.HealthRegen) )
+            if (player.Health < healthCap) {
+                player.Health += healthRegen
+                if (player.Health > healthCap) {
+                    player.Health = healthCap
+                }
+            }
+
+            //update shield stat
+            var shieldCap = BASE_SHIELD_CAP_VALUE + (10 * float64(player.ShieldCap) )
+            var shieldRegen = BASE_SHIELD_REGEN_VALUE + (0.01 * float64(player.ShieldRegen) )
+            if (player.Shield < shieldCap) {
+                player.Shield += shieldRegen
+                if (player.Shield > shieldCap) {
+                    player.Shield = shieldCap
+                }
+            }
+
+            //update energy stat
+            var energyCap = BASE_ENERGY_CAP_VALUE + (10 * float64(player.EnergyCap) )
+            var energyRegen = BASE_ENERGY_REGEN_VALUE + (0.01 * float64(player.EnergyRegen) )
+            if (player.Energy < energyCap) {
+                player.Energy += energyRegen
+                if (player.Energy > energyCap) {
+                    player.Energy = energyCap
+                }
+            }
+
+            //shoot
+            var fireRate = BASE_FIRE_RATE_VALUE - (10 * player.FireRate )
+            if (player.Shooting) {
+                player.FireRateCooldown -= 1
+
+                if (player.FireRateCooldown <= 0) {
+                    player.FireRateCooldown = fireRate
+
+                    // spawn new bullet
+                    newBullet := new (bullet)
+                    newBullet.ID = rand.Intn(1000)
+                    newBullet.rect = createRect(player.rect.x, player.rect.y, 0.17, 0.5)
+                    newBullet.rect.rotation = player.rect.rotation
+                    newBullet.shooter = player
+                    bullets = append(bullets, newBullet) 
+                }
+            } else {
+                player.FireRateCooldown = 0
+            }
+        }
+        time.Sleep( (time.Second / time.Duration(1000)) )
+    }
+}
+
+func movePlayers() {
+    for {
+        for _, player := range players {
+            var speed = BASE_SPEED_VALUE + (0.5 * float64(player.Speed) ) 
+            player.rect.x = player.rect.x + (player.xMovement* (speed/100) )
+            player.rect.y = player.rect.y + (player.yMovement* (speed/100) )
+
+
+            if (player.rect.x >= ARENA_SIZE) {
+                player.rect.x = ARENA_SIZE
+            } else if (player.rect.x <= -ARENA_SIZE) {
+                player.rect.x = -ARENA_SIZE
+            }
+
+            if (player.rect.y >= ARENA_SIZE) {
+                player.rect.y = ARENA_SIZE
+            } else if (player.rect.y <= -ARENA_SIZE) {
+                player.rect.y = -ARENA_SIZE
+            }
+            //player.rect.rotation = player.Rotation
+        }
+        time.Sleep( (time.Second / time.Duration(300)) )
+    }
+
+}
+
 func moveBullets() {
     for {
 
-        // for _, bullet := range bullets {
-        //     var bulletRadians float64 = (float64(bullet.rect.rotation+90) / 180.0) * 3.14159
-        //     bullet.rect.x = bullet.rect.x + (15 * 0.016 * math.Cos( bulletRadians ) )
-        //     bullet.rect.y = bullet.rect.y + (15 * 0.016 * math.Sin( bulletRadians ) )
-        // }
-
-        for _, player := range players {
-            player.rect.x = player.rect.x + (player.xMovement*0.1)
-            player.rect.y = player.rect.y + (player.yMovement*0.1)
-            //player.rect.rotation = player.Rotation
+        for _, bullet := range bullets {
+            var bulletRadians float64 = (float64(bullet.rect.rotation+90) / 180.0) * 3.14159
+            bullet.rect.x = bullet.rect.x + (15 * 0.116 * math.Cos( bulletRadians ) )
+            bullet.rect.y = bullet.rect.y + (15 * 0.116 * math.Sin( bulletRadians ) )
         }
 
         for _, bullet := range bullets {
+            var bulletRemoved = false
         
-            // rotateRectsPoints(player.rect, (float64(player.Rotation) / 180.0) * 3.14159 )
-            
-                // fmt.Printf("\n %v, %v", bullet.rect.x, bullet.rect.y)
+            // Checkl bullets for collision with players
             for _, player := range players {
                 if ( compareRects(player.rect, bullet.rect) == true && bullet.shooter != player ) {
-                    fmt.Printf("BULLET HIT Player")
-                    var toRemove int = -1
-                    for i, bullet2 := range bullets {
-                        if (bullet == bullet2) {
-                            toRemove = i
-                        }
-                    }
-                    bullets[toRemove] = bullets[len(bullets)-1]
-                    bullets = bullets[0:len(bullets)-1]
 
-                    player.Health = player.Health - 10
+                    //Remove bullet once it hits a player
+                    removeBulletFromList(bullet)
+                    bulletRemoved = true
+
+                    //calculate damage dealing
+                    var damage = BASE_DAMAGE_VALUE + (bullet.shooter.Damage * 5)
+
+                    //Player takes damage to shield until zero, then takes health damage
+                    var diff = player.Shield - float64(damage)
+                    if (diff >= 0) {
+                        player.Shield -= float64(damage)
+                    } else {
+                        player.Shield = 0
+                        player.Health += diff
+                    }
+
+                    //player.Health = player.Health - 10
 
                     if (player.Health <= 0) {
                         player.rect.x = 0
                         player.rect.y = 0
                         player.Health = 100
+
+                        //update shooter's scraps
+                        bullet.shooter.Scraps += 100
                     }
 
-                    // sendDamageTakenPacket(player)
                 }
             
             }
 
-            for _, e := range enemies { 
-                if ( compareRects(e.rect, bullet.rect) == true ) {
-                    fmt.Printf("BULLET HIT Enemy ")
-                    var toRemove int = -1
-                    for i, bullet2 := range bullets {
-                        if (bullet == bullet2) {
-                            toRemove = i
-                        }
-                    }
-                    bullets[toRemove] = bullets[len(bullets)-1]
-                    bullets = bullets[0:len(bullets)-1]
+            // Check bullets for collision with npcs
+            if (bulletRemoved == false) {
+                for _, npc := range npcs {
+                    if ( compareRects(npc.rect, bullet.rect) == true ) {
 
-                    e.health = e.health - 10
+                        //Remove bullet once it hits a player
+                        removeBulletFromList(bullet)
 
-                    if (e.health <= 0) {
-                        var toRemove int = -1
-                        for i, e2 := range enemies {
-                            if (e == e2) {
-                                toRemove = i
-                            }
+                        //calculate damage dealing
+                        var damage = BASE_DAMAGE_VALUE + (bullet.shooter.Damage * 5)
+
+                        npc.Health -= float64(damage)
+
+                        //player.Health = player.Health - 10
+
+                        if (npc.Health <= 0) {
+                            removeNpcFromList(npc)
+
+                            //update shooter's scraps
+                            bullet.shooter.Scraps += 100
                         }
-                        enemies[toRemove] = enemies[len(enemies)-1]
-                        enemies = enemies[0:len(enemies)-1]    
+
                     }
+                
                 }
             }
+
+            // for _, e := range enemies { 
+            //     if ( compareRects(e.rect, bullet.rect) == true ) {
+            //         fmt.Printf("BULLET HIT Enemy ")
+            //         var toRemove int = -1
+            //         for i, bullet2 := range bullets {
+            //             if (bullet == bullet2) {
+            //                 toRemove = i
+            //             }
+            //         }
+            //         bullets[toRemove] = bullets[len(bullets)-1]
+            //         bullets = bullets[0:len(bullets)-1]
+
+            //         e.health = e.health - 10
+
+            //         if (e.health <= 0) {
+            //             var toRemove int = -1
+            //             for i, e2 := range enemies {
+            //                 if (e == e2) {
+            //                     toRemove = i
+            //                 }
+            //             }
+            //             enemies[toRemove] = enemies[len(enemies)-1]
+            //             enemies = enemies[0:len(enemies)-1]    
+            //         }
+            //     }
+            // }
         }
 
         time.Sleep( (time.Second / time.Duration(60)) )
@@ -417,15 +625,15 @@ func moveBullets() {
 }
 
 func moveEnemies() {
-    for {
+    // for {
 
-        for _, e := range enemies {
-            e.rect.x = e.rect.x + ((rand.Float64() * 2) - 1)
-            e.rect.y = e.rect.y + ((rand.Float64() * 2) - 1)
-        }
+    //     for _, e := range enemies {
+    //         e.rect.x = e.rect.x + ((rand.Float64() * 2) - 1)
+    //         e.rect.y = e.rect.y + ((rand.Float64() * 2) - 1)
+    //     }
 
-        time.Sleep( (time.Second / time.Duration(10)) )
-    }
+    //     time.Sleep( (time.Second / time.Duration(10)) )
+    // }
 }
 
 func matchmake() {
@@ -483,17 +691,35 @@ func createRect(x float64, y float64, width float64, height float64) rectangle {
 }
 
 func match(c io.ReadWriteCloser) {
-    // var newPlayer player
+    // setup new player and its stats
     newPlayer := new(player)
     newPlayer.RWC = c
     newPlayer.ID = ""
+    newPlayer.Infamy = 0
     newPlayer.Health = 100
+    newPlayer.HealthCap = 0
+    newPlayer.HealthRegen = 0
+    newPlayer.Energy = 50
+    newPlayer.EnergyCap = 0
+    newPlayer.EnergyRegen = 0
+    newPlayer.Shield = 10
+    newPlayer.ShieldCap = 0
+    newPlayer.ShieldRegen = 0 //per tenth of a second
+    newPlayer.FireRate = 0
+    newPlayer.FireRateCooldown = 0
+    newPlayer.Damage = 0
+    newPlayer.Speed = 0
+    newPlayer.Scraps = 0
+    newPlayer.WeaponCooldownCap = 0.5
+    newPlayer.WeaponCooldown = 0
+    newPlayer.WeaponBulletCount = 1
 
-    newPlayer.rect = createRect(0, 0, 1, 1)
+    newPlayer.rect = createRect(0, 0, 3, 3)
 
     newPlayer.gear.cockpit = -1
 
     players = append(players, newPlayer)
+    fmt.Printf("\nPlayer Joined!\n>")
     go getDataFromPlayer(newPlayer)
     
 }
@@ -512,6 +738,66 @@ func rotateRectsPoints(r rectangle, angle float64) {
     }
 }
 
+func findPlayerIndex(p *player) int {
+    var i = 0;
+    var foundIndex = -1;
+    for _, player := range players {
+        if (p == player) {
+            foundIndex = i;
+        }
+        i++
+    }
+    return foundIndex
+}
+
+func findPlayerIndexByID(pID string) int {
+    var i = 0;
+    var foundIndex = -1;
+    for _, player := range players {
+        if (player.ID == pID) {
+            foundIndex = i;
+        }
+        i++
+    }
+    return foundIndex
+}
+
+func removePlayerFromList(p *player) {
+    var foundIndex = findPlayerIndex(p);
+
+    if (foundIndex != -1) {
+        players = append(players[:foundIndex], players[foundIndex+1:]...)
+    }
+}
+
+func removeBulletFromList(b *bullet) {
+    var i = 0;
+    var foundIndex = -1;
+    for _, bullet := range bullets {
+        if (b == bullet) {
+            foundIndex = i;
+        }
+        i++
+    }
+    if (foundIndex != -1) {
+        bullets = append(bullets[:foundIndex], bullets[foundIndex+1:]...)
+    }
+}
+
+func removeNpcFromList(n *Npc) {
+    var i = 0;
+    var foundIndex = -1;
+    for _, npc := range npcs {
+        if (n == npc) {
+            foundIndex = i;
+        }
+        i++
+    }
+    if (foundIndex != -1) {
+        npcs = append(npcs[:foundIndex], npcs[foundIndex+1:]...)
+    }
+}
+
 func getDataFromPlayer(player *player) {
 
     for {
@@ -519,6 +805,11 @@ func getDataFromPlayer(player *player) {
 
         buf := make([]byte, 1024)
         n, err := player.RWC.Read(buf)
+
+        if (err != nil) {
+            removePlayerFromList(player)
+            break
+        }
 
         // var stringData = string(buf[0:n])
         // fmt.Printf(stringData)
@@ -544,8 +835,13 @@ func getDataFromPlayer(player *player) {
 
                 player.ID = res.ID
 
+                player.Shooting = res.Shooting
+
                 player.xMovement = res.X
                 player.yMovement = res.Y
+
+                player.rect.rotation = res.Rotation
+            
 
                 //print("%v", player.xMovement)
 
@@ -575,42 +871,64 @@ func getDataFromPlayer(player *player) {
 
                 //test := string(buf[0:n])
             } else if res.Action == "shoot" {
-                // res1D := &Shoot{
-                //     Action: "shoot",
-                //     ID: player.ID,
-                //     X: res.X,
-                //     Y: res.Y,
-                //     Rotation: res.Rotation,
-                // }  
-
-                // var newByteArray []byte
-                // enc := codec.NewEncoder(player.RWC, &mh)
-                // enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                // enc.Encode(res1D)
-
-                // fmt.Println(string(newByteArray))
-                //sendToEveryoneBut( string(newByteArray), player.RWC ) 
-
-                var resX float64
-                var resY float64
-
-                resX = res.X
-                resY = res.Y
-
-                // var newBullet bullet
-                newBullet := new (bullet)
-                newBullet.ID = rand.Intn(1000)
-                newBullet.rect = createRect(resX, resY, 0.17, 0.5)
-                newBullet.rect.rotation = res.Rotation
-                newBullet.shooter = player
-
-                bullets = append(bullets, newBullet)            
-            } else if res.Action == "input" {
-                // player.rect.y = player.rect.y + (0.
-                // if (res.Y == 1) {
-                //     player.rect.y = player.rect.y + 0.5
-                // }
-            } 
+                player.Health = player.Health
+            } else if (res.Action == "upgradeHealthCap") {
+                if (player.Scraps >= 100 && player.HealthCap < HEALTHCAP_CAP) {
+                    player.HealthCap += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeHealthRegen") {
+                if (player.Scraps >= 100 && player.HealthRegen < HEALTH_REGEN_CAP) {
+                    player.HealthRegen += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeSpeed") {
+                if (player.Scraps >= 100 && player.Speed < MOVE_SPEED_CAP) {
+                    player.Speed += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeShieldCap") {
+                if (player.Scraps >= 100 && player.ShieldCap < SHIELD_CAP) {
+                    player.ShieldCap += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeShieldRegen") {
+                if (player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP) {
+                    player.ShieldRegen += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeEnergyCap") {
+                if (player.Scraps >= 100 && player.EnergyCap < ENERGY_CAP_CAP) {
+                    player.EnergyCap += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeEnergyRegen") {
+                if (player.Scraps >= 100 && player.EnergyRegen < ENERGY_REGEN_CAP) {
+                    player.EnergyRegen += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeShieldRegen") {
+                if (player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP) {
+                    player.ShieldRegen += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeDamage") {
+                if (player.Scraps >= 100 && player.Damage < DAMAGE_CAP) {
+                    player.Damage += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "upgradeFireRate") {
+                if (player.Scraps >= 100 && player.FireRate < FIRE_RATE_CAP) {
+                    player.FireRate += 1
+                    player.Scraps -= 100;
+                }
+            } else if (res.Action == "jump") {
+                if (player.Scraps >= 200) {
+                    player.Scraps -= 200
+                    player.rect.x = res.X;
+                    player.rect.y = res.Y;
+                }
+            }
             // fmt.Printf( strconv.FormatFloat(res.X, 'f', 6, 64) )
         } else {
             shouldRemove = true
@@ -639,129 +957,183 @@ func CToGoString(c []byte) string {
     return string(c[:n+1])
 }
 
+func intToBinaryString(i int) string {
+    //create header
+    // var value = int64(i)
+    // binary := strconv.FormatInt(value, 2)
+    // var diff = 8 - len(binary)
+    // for i := 0; i < diff; i++ {
+    //     binary = "0" + binary;
+    // }
+    // return binary
+
+    var header = strconv.FormatInt(int64(i), 16)
+
+    var diff = 5 - len(header)
+    for i := 0; i < diff; i++ {
+        header = "0" + header;
+    }
+
+    return header
+
+}
+
 // {"Action":"shoot", "ID":"87", "X":"0", "Y":"0", "Rotation":"22"}
 func chat () {
 
     var speedMod = 30
     for { 
 
-        //bulletMap := make([][]string, len(bullets))
-        // bulletMap := make(map[string][]string);
-        bulletIDs := make([]int, len(bullets));
-        bulletXs := make([]float64, len(bullets));
-        bulletYs := make([]float64, len(bullets));
+        bulletIDs := make([]int, 0);
+        bulletXs := make([]float64, 0);
+        bulletYs := make([]float64, 0);
+        bulletRots := make([]int, 0);
+
+        otherPlayerIDs := make([]string, 0);
+        otherPlayerXs := make([]float64, 0);
+        otherPlayerYs := make([]float64, 0);
+        otherPlayerHlths := make([]float64, 0);
+
+        npcIDs := make([]int, 0);
+        npcTypes := make([]int, 0);
+        npcXs := make([]float64, 0);
+        npcYs := make([]float64, 0);
+        npcHlths := make([]float64, 0);
 
         //var bulletPackets []*BulletUpdate
 
-        //put all bullets into one array
-        i := 0
-        //for _, bullet := range bullets {
-            // bulletIDs = append(bulletIDs, bullet.ID);
-            // bulletXs = append(bulletXs, bullet.rect.x);
-            // bulletYs = append(bulletYs, bullet.rect.y);
-
-            //create update packet
-            // newBulletPacket := &BulletUpdate{
-            //     ID: bullet.ID,
-            //     Damage: strconv.Itoa(0),
-            //     X: bullet.rect.x,
-            //     Y: bullet.rect.y,
-            //     Rotation: bullet.rect.rotation,
-            // }
-            // bulletPackets = append(bulletPackets, newBulletPacket)    
-            i = i + 1       
-        //}
-
         for _, player := range players {
-            //fmt.Printf("%v", player.ID)
+            if (player.ID != "") {
+                //put all bullets into one array that are CLOSE TO THE PLAYER
+                //WARNING: MAY CAUSE LAG
+                for _, bullet := range bullets {
 
-            // var newByteArray []byte
-            // enc := codec.NewEncoder(player.RWC, &mh)
-            // enc = codec.NewEncoderBytes(&newByteArray, &mh)
-            // enc.Encode(bulletPacket)
-
-            // var stringMessage = string(newByteArray)
-            // var diff = 100 - len(stringMessage)
-
-            // for i := 1; i < diff; i ++ {
-            // }  
-            // //print(stringMessage, "/n")
-            // go fmt.Fprintln(player.RWC, stringMessage) 
-
-            // sendEnemiesInArea(player)
-
-            for _, otherPlayer := range players {
-                if (otherPlayer.ID != "") {
-                    //create new gear obj for the other players current gear set
-                    // otherPlayersGear := gearSet{
-                    //     cockpit: otherPlayer.gear.cockpit,
-                    //     lasers: otherPlayer.gear.lasers,
-                    //     wings: otherPlayer.gear.wings,
-                    //     jets: otherPlayer.gear.jets,
-                    // }
-
-                    gear := []int{otherPlayer.gear.cockpit, otherPlayer.gear.lasers, otherPlayer.gear.wings, otherPlayer.gear.jets}
-
-                    //new table that has multiple updates 
-
-                    //create update packet
-                    res1D := &Update{
-                        Action: "playerUpdate",
-                        ID: otherPlayer.ID,
-                        Health: otherPlayer.Health,
-                        X: otherPlayer.rect.x,
-                        Y: otherPlayer.rect.y,
-                        Rotation: otherPlayer.rect.rotation,
-                        Gear: gear,
-                        IsNPC: false,
-                        BulletIDs: bulletIDs,
-                        BulletXs: bulletXs,
-                        BulletYs: bulletYs,
+                    var dist = math.Sqrt( math.Pow(bullet.rect.x - player.rect.x, 2) + math.Pow(bullet.rect.y - player.rect.y, 2) )
+                    if (dist <= PLAYER_LOAD_DIST) {
+                        bulletIDs = append(bulletIDs, bullet.ID);
+                        bulletXs = append(bulletXs, bullet.rect.x);
+                        bulletYs = append(bulletYs, bullet.rect.y);
+                        bulletRots = append(bulletRots, bullet.rect.rotation);
                     }
 
-                    var newByteArray []byte
-                    enc := codec.NewEncoder(player.RWC, &mh)
-                    enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                    enc.Encode(res1D)
-
-                    var stringMessage = string(newByteArray)
-                    var diff = 100 - len(stringMessage)
-
-                    for i := 1; i < diff; i ++ {
-                        stringMessage += "$"
-                    } 
-
-                    fmt.Printf("%v\n", len(stringMessage));
-
-                    // dec := codec.NewDecoder(player.RWC, &mh)
-                    // dec = codec.NewDecoderBytes(b, &mh)
-                    // err2 := dec.Decode(&Update) 
-                    //send update packet
-                    // res1B, _ := json.Marshal(res1D)
-                    // go fmt.Fprintln(player.RWC, string(res1B)+"\n" )
-                    // fmt.Println( string(b) )
-                    // fmt.Printf(strconv.Itoa(len(stringMessage) ))
-                    go fmt.Fprintln(player.RWC, stringMessage)
-                } else {
-                    res1F := &Message{
-                        Action: "message",
-                        Data: "connected!",
-                    }
-
-                    var newByteArray []byte
-                    enc := codec.NewEncoder(player.RWC, &mh)
-                    enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                    enc.Encode(res1F)
-
-                    var stringMessage = string(newByteArray)
-                    var diff = 100 - len(stringMessage)
-
-                    for i := 1; i < diff; i ++ {
-                        stringMessage += "$"
-                    } 
-
-                    go fmt.Fprintln(player.RWC, stringMessage)
                 }
+
+                //get all data from other players
+                //WARNING: MAY CAUSE LAG
+                for _, otherPlayer := range players {
+                    if (player.ID == "1" && player != otherPlayer) {
+                        fmt.Printf("X: %v, Y: %v\n", otherPlayer.rect.x, otherPlayer.rect.y)
+                    }
+
+                    var dist = math.Sqrt( math.Pow(otherPlayer.rect.x - player.rect.x, 2) + math.Pow(otherPlayer.rect.y - player.rect.y, 2) )
+                    if (dist <= PLAYER_LOAD_DIST && player != otherPlayer) {
+                        otherPlayerIDs = append(otherPlayerIDs, otherPlayer.ID);
+                        otherPlayerXs = append(otherPlayerXs, otherPlayer.rect.x);
+                        otherPlayerYs = append(otherPlayerYs, otherPlayer.rect.y);
+                        otherPlayerHlths = append(otherPlayerHlths, otherPlayer.Health);
+                    }
+                }
+
+                //get all data from NPCs
+                //WARNING: MAY CAUSE LAG
+                for _, npc := range npcs {
+                    var dist = math.Sqrt( math.Pow(npc.rect.x - player.rect.x, 2) + math.Pow(npc.rect.y - player.rect.y, 2) )
+                    if (dist <= PLAYER_LOAD_DIST) {
+                        npcIDs = append(npcIDs, npc.ID);
+                        npcTypes = append(npcTypes, npc.ID);
+                        npcXs = append(npcXs, npc.rect.x);
+                        npcYs = append(npcYs, npc.rect.y);
+                        npcHlths = append(npcHlths, npc.Health);
+                    }
+                }
+
+                //create new gear obj for the other players current gear set
+                // otherPlayersGear := gearSet{
+                //     cockpit: otherPlayer.gear.cockpit,
+                //     lasers: otherPlayer.gear.lasers,
+                //     wings: otherPlayer.gear.wings,
+                //     jets: otherPlayer.gear.jets,
+                // }
+
+                gear := []int{player.gear.cockpit, player.gear.lasers, player.gear.wings, player.gear.jets}
+
+                //new table that has multiple updates 
+
+                //create update packet
+                res1D := &Update{
+                    Action: "playerUpdate",
+                    ID: player.ID,
+                    Infamy: player.Infamy,
+                    FireRate: player.FireRate,
+                    Health: player.Health,
+                    HealthCap: player.HealthCap,
+                    HealthRegen: player.HealthRegen,
+                    Energy: player.Energy,
+                    EnergyCap: player.EnergyCap,
+                    EnergyRegen: player.EnergyRegen,
+                    Shield: player.Shield,
+                    ShieldCap: player.ShieldCap,
+                    ShieldRegen: player.ShieldRegen,
+                    Speed: player.Speed,
+                    Damage: player.Damage,
+                    Scraps: player.Scraps,
+                    X: player.rect.x,
+                    Y: player.rect.y,
+                    Rotation: player.rect.rotation,
+                    Gear: gear,
+                    IsNPC: false,
+                    OtherPlayerIDs: otherPlayerIDs,
+                    OtherPlayerXs: otherPlayerXs,
+                    OtherPlayerYs: otherPlayerYs,
+                    OtherPlayerHlths: otherPlayerHlths,
+                    BulletIDs: bulletIDs,
+                    BulletXs: bulletXs,
+                    BulletYs: bulletYs,
+                    BulletRots: bulletRots,
+                    NpcIDs: npcIDs,
+                    NpcTypes: npcTypes,
+                    NpcXs: npcXs,
+                    NpcYs: npcYs,
+                    NpcHlths: npcHlths,
+                }
+
+                var newByteArray []byte
+                enc := codec.NewEncoder(player.RWC, &mh)
+                enc = codec.NewEncoderBytes(&newByteArray, &mh)
+                enc.Encode(res1D)
+
+                var stringMessage = string(newByteArray)
+                //create header
+                var header = intToBinaryString(len(stringMessage))
+                //format message message
+                stringMessage = header+stringMessage
+                //print message
+                if (player.ID == "1") {
+                    fmt.Printf(stringMessage + "\n")
+                }
+                // fmt.Printf("Header: %v\n", header);
+                // fmt.Printf("Packet Length: %v\n", len(newByteArray));
+
+                //send message
+                go fmt.Fprint(player.RWC, stringMessage)
+            } else {
+                res1F := &Message{
+                    Action: "message",
+                    Data: "connected!",
+                }
+
+                var newByteArray []byte
+                enc := codec.NewEncoder(player.RWC, &mh)
+                enc = codec.NewEncoderBytes(&newByteArray, &mh)
+                enc.Encode(res1F)
+
+                var stringMessage = string(newByteArray)
+                //---create header---
+                var header = intToBinaryString(len(stringMessage))
+                //---add header---
+                stringMessage = header+stringMessage
+                //send message
+                go fmt.Fprint(player.RWC, stringMessage)
             }
         }
         time.Sleep( 1  * (time.Second / time.Duration(speedMod)) )
