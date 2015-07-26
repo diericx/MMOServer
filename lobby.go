@@ -704,10 +704,10 @@ func match(c io.ReadWriteCloser) {
 
     newPlayer.Inventory = make([]Item, 6)
 
-    newItem := Item{}
-    newItem.itemType = "wing"
-    newItem.itemID = 2
-    newPlayer.Inventory[0] = newItem
+    // newItem := Item{}
+    // newItem.itemType = "wing"
+    // newItem.itemID = 2
+    // newPlayer.Inventory[0] = newItem
 
     players = append(players, newPlayer)
     fmt.Printf("\nPlayer Joined!\n>")
