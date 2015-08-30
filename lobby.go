@@ -47,8 +47,8 @@ type player struct {
     Y float64
     xMovement float64
     yMovement float64
-    Gear gearSet
-    Inventory []Item
+    Gear []string
+    Inventory []string
 }
 
 type point struct {
@@ -65,11 +65,6 @@ type gearSet struct {
     laser int
     wing int
     jet int
-}
-
-type Item struct {
-    itemType string
-    itemID int
 }
 
 type Npc struct {
@@ -125,18 +120,17 @@ type Update struct {
     X float64 //change to float64
     Y float64
     Rotation int
-    Gear []int
+    Gear []string
     IsNPC bool
     //inventory data
-    InventoryTypes []string
-    InventoryIDs []int
+    Inventory []string
     //other player data
     OtherPlayerIDs []string
     OtherPlayerXs []float64
     OtherPlayerYs []float64
     OtherPlayerRots []int
     OtherPlayerHlths []float64
-    OtherPlayerGearSets [][]int
+    OtherPlayerGearSets [][]string
     //bullet data
     BulletIDs []int
     BulletXs []float64
@@ -185,7 +179,7 @@ type Shoot struct {
     Rotation int
 }
 
-const listenAddr = "192.168.0.167:7777"
+const listenAddr = ":7777"
 
 const baseAddr = "http://192.168.1.18:3000/api/v1/"
 
@@ -235,6 +229,11 @@ func main() {
     rand.Seed(time.Now().Unix())
 
     spawnNPCs()
+
+    loadAllItemData()
+    go listenOn843()
+    // speed := data[0].(int)
+    // fmt.Println(speed)
 
     // for i := 100; i < 110; i++ {
     //     newEnemy := new(Enemy)
@@ -455,7 +454,8 @@ func updatePlayerStats() {
         for _, player := range players {
 
             //update health stat
-            var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.HealthCap) )
+            hullHealthCapAttr := getItemAttribute(player.Gear[0], "healthCap")
+            var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.HealthCap) ) + hullHealthCapAttr
             var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.HealthRegen) )
             if (player.Health < healthCap) {
                 player.Health += healthRegen
@@ -511,7 +511,10 @@ func updatePlayerStats() {
 func movePlayers() {
     for {
         for _, player := range players {
-            var speed = BASE_SPEED_VALUE + (0.5 * float64(player.Speed) ) 
+
+            wingSpeedAttr := getItemAttribute(player.Gear[2], "speed")
+
+            var speed = BASE_SPEED_VALUE + (0.5 * float64(player.Speed + int(wingSpeedAttr) ) ) 
             player.rect.x = player.rect.x + (player.xMovement* (speed/100) )
             player.rect.y = player.rect.y + (player.yMovement* (speed/100) )
 
@@ -603,7 +606,7 @@ func moveBullets() {
                             bullet.shooter.Scraps += ( int32(rand.Intn(51)) + 50 )
 
                             //drop item randomly
-                            dropItemRandomly(bullet.shooter, 25)
+                            dropItemRandomly(bullet.shooter, 75)
                         }
 
                     }
@@ -696,18 +699,13 @@ func match(c io.ReadWriteCloser) {
 
     newPlayer.rect = createRect(0, 0, 3, 3)
 
-    newPlayer.Gear = gearSet{}
-    newPlayer.Gear.wing = 1
-    newPlayer.Gear.hull = 1
-    newPlayer.Gear.laser = 1
-    newPlayer.Gear.jet = 1
+    newPlayer.Gear = []string{
+        "H1", 
+        "L1", 
+        "W1", 
+        "T1"}
 
-    newPlayer.Inventory = make([]Item, 6)
-
-    // newItem := Item{}
-    // newItem.itemType = "wing"
-    // newItem.itemID = 2
-    // newPlayer.Inventory[0] = newItem
+    newPlayer.Inventory = make([]string, 8)
 
     players = append(players, newPlayer)
     fmt.Printf("\nPlayer Joined!\n>")
@@ -789,10 +787,10 @@ func removeNpcFromList(n *Npc) {
     }
 }
 
-func isItemInPlayerInventory(inv []Item, itemType string, itemID int) bool {
+func isItemInPlayerInventory(inv []string, itemID string) bool {
     var response = false
     for _, item := range inv {
-        if (item.itemType == itemType && item.itemID == itemID) {
+        if (item == itemID) {
             response = true
         }
     }
@@ -800,12 +798,12 @@ func isItemInPlayerInventory(inv []Item, itemType string, itemID int) bool {
     return response
 }
 
-func removeItemFromInventory(inv *[]Item, itemType string, itemID int) {
+func removeItemFromInventory(inv *[]string, itemID string) {
     var j = 0;
     var foundIndex = -1;
     var inventory = *inv
     for _, item := range inventory {
-        if (item.itemType == itemType && item.itemID == itemID) {
+        if (item == itemID) {
             foundIndex = j;
         }
         j++
@@ -816,30 +814,26 @@ func removeItemFromInventory(inv *[]Item, itemType string, itemID int) {
     *inv = inventory
 }
 
-func removeItemFromInventoryViaIndex(inv *[]Item, index int) {
+func removeItemFromInventoryViaIndex(inv *[]string, index int) {
     var inventory = *inv
-    inventory[index] = Item{}
+    inventory[index] = ""
     *inv = inventory
 }
 
-func addItemToInventory(inv *[]Item, index int, itemType string, itemID int) {
+func addItemToInventory(inv *[]string, index int, itemID string) {
     if (index != -1) {
         var inventory =  *inv
 
-        var newItem = Item{}
-        newItem.itemType = itemType
-        newItem.itemID = itemID
-
-        inventory[index] = newItem
+        inventory[index] = itemID
 
         *inv = inventory
     }
 }
 
-func getNextOpenSlotInInventory(inv []Item) int {
+func getNextOpenSlotInInventory(inv []string) int {
     var foundIndex = -1
     for i := 0; i < len(inv); i++ {
-        if (inv[i].itemType == "") {
+        if (inv[i] == "") {
            foundIndex = i
            break
         }
@@ -858,11 +852,13 @@ func dropItemRandomly(player *player, chance int) {
         if (itemType == 0) {
             //hull
             var randItem = rand.Intn(NUMBER_OF_HULL_ITEMS)+1
-            addItemToInventory(&player.Inventory, openSlot, "hull", randItem)
+            var randItemID = "H"+strconv.Itoa(randItem)
+            addItemToInventory(&player.Inventory, openSlot, randItemID)
         } else if (itemType == 1) {
             //wings
             var randItem = rand.Intn(NUMBER_OF_WING_ITEMS)+1
-            addItemToInventory(&player.Inventory, openSlot, "wing", randItem)
+            var randItemID = "W"+strconv.Itoa(randItem)
+            addItemToInventory(&player.Inventory, openSlot, randItemID)
         } else if (itemType == 2) {
             //lasers
         }
@@ -946,49 +942,28 @@ func getDataFromPlayer(player *player) {
                 //test := string(buf[0:n])
             } else if res.Action == "equip" {
 
-                //put item to equip data in variables
-                var itemToEquipType = player.Inventory[res.Value].itemType
-                var itemToEquipID = player.Inventory[res.Value].itemID
-                //put item currently wearing into variabls
-                var currentItemType = player.Inventory[res.Value].itemType
-                var currentItemID = 0
+                //TO DO: ADD JSON SUPPORT
 
-                if (itemToEquipType == "wing"){
-                    currentItemID = player.Gear.wing
+                //put item to equip data in variables
+                var itemToEquip = player.Inventory[res.Value] //H1
+                //put item currently wearing into variabls
+                var currentItem = ""
+
+                if (string(itemToEquip[0]) == "W"){
+                    currentItem = player.Gear[2]
                     //replace equiped item
-                    player.Gear.wing = itemToEquipID
-                } else if ( itemToEquipType == "hull" ) {
-                    fmt.Printf(currentItemType)
-                    currentItemID = player.Gear.hull
+                    player.Gear[2] = itemToEquip
+                } else if ( string(itemToEquip[0]) == "H" ) {
+                    currentItem = player.Gear[0] //H2
                     //replace equiped item
-                    player.Gear.hull = itemToEquipID
+                    player.Gear[0] = itemToEquip
                 }
 
                 //remove equipped item from inventory
                 removeItemFromInventoryViaIndex(&player.Inventory, res.Value)
                 //add item that was replaced
-                addItemToInventory(&player.Inventory, res.Value, currentItemType, currentItemID )
+                addItemToInventory(&player.Inventory, res.Value, currentItem )
 
-                //convert id to int
-                // id, err := strconv.Atoi(res.ID)
-                // if (err != nil) {
-                //     fmt.Printf("[RemoveItemFromInv]item id was not a correct int!")
-                // } else {
-                //     if (isItemInPlayerInventory(player.Inventory, res.Type, id)) {
-                //         //save old item id
-                //         var currentItemID = 0
-                //         //replace player gear with item being equiped
-                //         if (res.Type == "wing") {
-                //             currentItemID = player.Gear.wings
-                //             //replace it with new item
-                //             player.Gear.wings = id
-                //             removeItemFromInventory(&player.Inventory, res.Type, id)
-                //         } 
-                //         //add replaced item to inventory
-                //         addItemToInventory(&player.Inventory, res.Type, currentItemID )
-                //     }
-                // }
-                // fmt.Printf("%v", player.Gear.wings)
             }else if res.Action == "drop" {
                 fmt.Printf("%v", res.Value)
                 removeItemFromInventoryViaIndex(&player.Inventory, res.Value)
@@ -1104,13 +1079,12 @@ func intToBinaryString(i int) string {
 func chat () {
 
     var speedMod = 30
+    var sentWelcomeMsg = false
     for { 
 
         //var bulletPackets []*BulletUpdate
 
         for _, player := range players {
-            inventoryTypes := make([]string, 0);
-            inventoryIDs := make([]int, 0);
 
             bulletIDs := make([]int, 0);
             bulletXs := make([]float64, 0);
@@ -1122,7 +1096,7 @@ func chat () {
             otherPlayerYs := make([]float64, 0);
             otherPlayerRots := make([]int, 0);
             otherPlayerHlths := make([]float64, 0);
-            otherPlayerGearSets := make([][]int, 0);
+            otherPlayerGearSets := make([][]string, 0);
 
             npcIDs := make([]int, 0);
             npcTypes := make([]int, 0);
@@ -1131,11 +1105,6 @@ func chat () {
             npcHlths := make([]float64, 0);
 
             if (player.ID != "") {
-                //put player inventory data into tables
-                for _, item := range player.Inventory {
-                    inventoryTypes = append(inventoryTypes, item.itemType);
-                    inventoryIDs = append(inventoryIDs, item.itemID);
-                }
 
                 //put all bullets into one array that are CLOSE TO THE PLAYER
                 //WARNING: MAY CAUSE LAG
@@ -1167,7 +1136,7 @@ func chat () {
                         otherPlayerRots = append(otherPlayerRots, otherPlayer.rect.rotation);
                         otherPlayerHlths = append(otherPlayerHlths, otherPlayer.Health);
 
-                        gearSet := []int{otherPlayer.Gear.hull, otherPlayer.Gear.laser, otherPlayer.Gear.wing, otherPlayer.Gear.jet}
+                        gearSet := []string{otherPlayer.Gear[0], otherPlayer.Gear[1], otherPlayer.Gear[2], otherPlayer.Gear[3]}
                         otherPlayerGearSets = append(otherPlayerGearSets, gearSet);
                     }
                 }
@@ -1193,8 +1162,6 @@ func chat () {
                 //     jets: otherPlayer.gear.jets,
                 // }
 
-                gear := []int{player.Gear.hull, player.Gear.laser, player.Gear.wing, player.Gear.jet}
-
                 //new table that has multiple updates 
 
                 //create update packet
@@ -1218,9 +1185,8 @@ func chat () {
                     X: player.rect.x,
                     Y: player.rect.y,
                     Rotation: player.rect.rotation,
-                    Gear: gear,
-                    InventoryTypes: inventoryTypes,
-                    InventoryIDs: inventoryIDs,
+                    Gear: player.Gear,
+                    Inventory: player.Inventory,
                     IsNPC: false,
                     OtherPlayerIDs: otherPlayerIDs,
                     OtherPlayerXs: otherPlayerXs,
@@ -1259,23 +1225,28 @@ func chat () {
                 //send message
                 go fmt.Fprint(player.RWC, stringMessage)
             } else {
-                res1F := &Message{
-                    Action: "message",
-                    Data: "connected!",
+                if (sentWelcomeMsg == false) {
+                    sentWelcomeMsg = true
+                    res1F := &Message{
+                        Action: "message",
+                        Data: "connected!",
+                    }
+
+                    var newByteArray []byte
+                    enc := codec.NewEncoder(player.RWC, &mh)
+                    enc = codec.NewEncoderBytes(&newByteArray, &mh)
+                    enc.Encode(res1F)
+
+                    var stringMessage = string(newByteArray)
+                    //---create header---
+                    var header = intToBinaryString(len(stringMessage))
+                    //---add header---
+                    stringMessage = header+stringMessage
+
+                    stringMessage = "<?xml version=\"1.0\"?>\n<cross-domain-policy>\n<allow-access-from domain=\"*\" to-ports=\"7770-7780\"/>\n</cross-domain-policy>\n"
+                    //send message
+                    go fmt.Fprint(player.RWC, stringMessage)
                 }
-
-                var newByteArray []byte
-                enc := codec.NewEncoder(player.RWC, &mh)
-                enc = codec.NewEncoderBytes(&newByteArray, &mh)
-                enc.Encode(res1F)
-
-                var stringMessage = string(newByteArray)
-                //---create header---
-                var header = intToBinaryString(len(stringMessage))
-                //---add header---
-                stringMessage = header+stringMessage
-                //send message
-                go fmt.Fprint(player.RWC, stringMessage)
             }
         }
         time.Sleep( 1  * (time.Second / time.Duration(speedMod)) )
