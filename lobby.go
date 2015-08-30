@@ -24,21 +24,23 @@ type player struct {
     rect rectangle
     RWC io.ReadWriteCloser
     ID string
+    Level int 
+    XP int
     Shooting bool
     Infamy int
     Health float64
-    HealthCap int //
-    HealthRegen int //
+    HealthCap int 
+    HealthRegen int 
     Energy float64
-    EnergyCap int //
-    EnergyRegen int //
+    EnergyCap int 
+    EnergyRegen int 
     Shield float64
-    ShieldCap int //
-    ShieldRegen int //
-    FireRate int //
+    ShieldCap int 
+    ShieldRegen int 
+    FireRate int 
     FireRateCooldown int
-    Damage int //
-    Speed int //
+    Damage int 
+    Speed int 
     WeaponCooldownCap float64
     WeaponCooldown float64
     WeaponBulletCount int
@@ -54,10 +56,6 @@ type player struct {
 type point struct {
     x float64
     y float64
-}
-
-type baseStats struct {
-
 }
 
 type gearSet struct {
@@ -101,6 +99,8 @@ type Update struct {
     Type string
     Value int
     ID string
+    Level int 
+    XP int
     Infamy int
     Shooting bool
     FireRate int
@@ -224,6 +224,10 @@ var ENERGY_MOD = 10
 
 var NUMBER_OF_WING_ITEMS = 2
 var NUMBER_OF_HULL_ITEMS = 2
+
+//leveling
+var BASE_XP = 100
+var LEVEL_XP_FACTOR = 4
 
 func main() {
     rand.Seed(time.Now().Unix())
@@ -453,6 +457,15 @@ func updatePlayerStats() {
     for {
         for _, player := range players {
 
+            //update XP and Level
+            var currentXPCap float64 = float64(BASE_XP) * (math.Pow( float64(player.Level) , float64(LEVEL_XP_FACTOR) ) )
+            var currentXPCapRounded = int(currentXPCap) //round number
+            if (player.XP >= nextLevelXPRounded) {
+                var diff = player.XP - currentXPCapRounded
+                player.Level += 1
+                player.XP = diff
+            }
+
             //update health stat
             hullHealthCapAttr := getItemAttribute(player.Gear[0], "healthCap")
             var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.HealthCap) ) + hullHealthCapAttr
@@ -578,6 +591,7 @@ func moveBullets() {
 
                         //update shooter's scraps
                         bullet.shooter.Scraps += 100
+                        bullet.shooter.XP += 100
                     }
 
                 }
@@ -604,6 +618,7 @@ func moveBullets() {
 
                             //update shooter's scraps
                             bullet.shooter.Scraps += ( int32(rand.Intn(51)) + 50 )
+                            bullet.shooter.XP += 20
 
                             //drop item randomly
                             dropItemRandomly(bullet.shooter, 75)
@@ -1168,6 +1183,8 @@ func chat () {
                 res1D := &Update{
                     Action: "playerUpdate",
                     ID: player.ID,
+                    Level: player.Level,
+                    XP: player.XP,
                     Infamy: player.Infamy,
                     FireRate: player.FireRate,
                     Health: player.Health,
