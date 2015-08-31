@@ -235,7 +235,7 @@ func main() {
     spawnNPCs()
 
     loadAllItemData()
-    go listenOn843()
+    //go listenOn843()
     // speed := data[0].(int)
     // fmt.Println(speed)
 
@@ -256,6 +256,7 @@ func main() {
     go moveBullets()
     go movePlayers()
     go updatePlayerStats()
+    go updateNPCs()
     go chat()
     matchmake()
 }
@@ -312,6 +313,18 @@ func spawnNPCs() {
 
         npcs = append(npcs, newNPC)
     }
+
+    //create test NPC type 2
+    newNPC := new(Npc)
+    newNPC.ID = rand.Intn(10000)
+    newNPC.Type = 2
+    newNPC.Health = 50
+    newNPC.rect.rotation = 0
+    var x float64 = 0
+    var y float64= 0
+    newNPC.rect = createRect(x, y, 3, 3)
+
+    npcs = append(npcs, newNPC)
 }
 
 func getConsoleInput() {
@@ -453,6 +466,18 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
     return !result && !result2 
 }
 
+func updateNPCs() {
+    for {
+        for _, npc := range npcs {
+            if (npc.Type == 2) {
+                npc.rect.x = rand.Float64()*5 - 2.5
+                npc.rect.y = rand.Float64()*5 - 2.5
+            }
+        }
+        time.Sleep( (time.Second / time.Duration(1000)) )
+    }
+}
+
 func updatePlayerStats() {
     for {
         for _, player := range players {
@@ -460,7 +485,7 @@ func updatePlayerStats() {
             //update XP and Level
             var currentXPCap float64 = float64(BASE_XP) * (math.Pow( float64(player.Level) , float64(LEVEL_XP_FACTOR) ) )
             var currentXPCapRounded = int(currentXPCap) //round number
-            if (player.XP >= nextLevelXPRounded) {
+            if (player.XP >= currentXPCapRounded) {
                 var diff = player.XP - currentXPCapRounded
                 player.Level += 1
                 player.XP = diff
@@ -1162,7 +1187,7 @@ func chat () {
                     var dist = math.Sqrt( math.Pow(npc.rect.x - player.rect.x, 2) + math.Pow(npc.rect.y - player.rect.y, 2) )
                     if (dist <= PLAYER_LOAD_DIST) {
                         npcIDs = append(npcIDs, npc.ID);
-                        npcTypes = append(npcTypes, npc.ID);
+                        npcTypes = append(npcTypes, npc.Type);
                         npcXs = append(npcXs, npc.rect.x);
                         npcYs = append(npcYs, npc.rect.y);
                         npcHlths = append(npcHlths, npc.Health);
