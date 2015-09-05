@@ -71,6 +71,9 @@ type Npc struct {
     Type int
     Health float64
     rotation int
+    shotTime int
+    shotCooldown int
+    shotType string
 }
 
 type rectangle struct {
@@ -84,6 +87,7 @@ type rectangle struct {
 
 type bullet struct {
     shooter *player
+    damage int
     ID int
     rect rectangle
 }
@@ -305,6 +309,8 @@ func spawnNPCs() {
         newNPC := new(Npc)
         newNPC.ID = rand.Intn(10000)
         newNPC.Type = 1
+        newNPC.shotTime = -1
+        newNPC.shotCooldown = -1
         newNPC.Health = 50
         newNPC.rect.rotation = 0
         var x = ((rand.Float64() * ARENA_SIZE ) - (ARENA_SIZE/2))
@@ -318,6 +324,8 @@ func spawnNPCs() {
     newNPC := new(Npc)
     newNPC.ID = rand.Intn(10000)
     newNPC.Type = 2
+    newNPC.shotTime = 1000
+    newNPC.shotCooldown = 1000
     newNPC.Health = 50
     newNPC.rect.rotation = 0
     var x float64 = 0
@@ -473,6 +481,15 @@ func updateNPCs() {
                 npc.rect.x = rand.Float64()*5 - 2.5
                 npc.rect.y = rand.Float64()*5 - 2.5
             }
+
+            if (npc.shotTime != -1) {
+                if (npc.shotCooldown > 0) {
+                    npc.shotCooldown -= 1
+                } else if (npc.shotCooldown <= 0) {
+                    npc.shotCooldown = npc.shotTime
+                    handleShot("radialShotgunShot", nil, 5, npc.rect, &bullets)
+                }
+            }
         }
         time.Sleep( (time.Second / time.Duration(1000)) )
     }
@@ -531,12 +548,7 @@ func updatePlayerStats() {
                     player.FireRateCooldown = fireRate
 
                     // spawn new bullet
-                    newBullet := new (bullet)
-                    newBullet.ID = rand.Intn(1000)
-                    newBullet.rect = createRect(player.rect.x, player.rect.y, 0.17, 0.5)
-                    newBullet.rect.rotation = player.rect.rotation
-                    newBullet.shooter = player
-                    bullets = append(bullets, newBullet) 
+                    handleShot("singleShot", player, player.Damage, player.rect, &bullets)
                 }
             } else {
                 player.FireRateCooldown = 0
@@ -589,36 +601,49 @@ func moveBullets() {
         
             // Checkl bullets for collision with players
             for _, player := range players {
-                if ( compareRects(player.rect, bullet.rect) == true && bullet.shooter != player ) {
+                if ( compareRects(player.rect, bullet.rect) == true ) {
+                    var shouldContinue = false
 
-                    //Remove bullet once it hits a player
-                    removeBulletFromList(bullet)
-                    bulletRemoved = true
-
-                    //calculate damage dealing
-                    var damage = BASE_DAMAGE_VALUE + (bullet.shooter.Damage * 5)
-
-                    //Player takes damage to shield until zero, then takes health damage
-                    var diff = player.Shield - float64(damage)
-                    if (diff >= 0) {
-                        player.Shield -= float64(damage)
+                    if (bullet.shooter == nil) {
+                        shouldContinue = true
                     } else {
-                        player.Shield = 0
-                        player.Health += diff
+                        if (bullet.shooter != player) {
+                            shouldContinue = true
+                        }
                     }
 
-                    //player.Health = player.Health - 10
+                    if (shouldContinue) {
 
-                    if (player.Health <= 0) {
-                        player.rect.x = 0
-                        player.rect.y = 0
-                        player.Health = 100
+                        //Remove bullet once it hits a player
+                        removeBulletFromList(bullet)
+                        bulletRemoved = true
 
-                        //update shooter's scraps
-                        bullet.shooter.Scraps += 100
-                        bullet.shooter.XP += 100
+                        //calculate damage dealing
+                        var damage = BASE_DAMAGE_VALUE + (bullet.damage * 5)
+
+                        //Player takes damage to shield until zero, then takes health damage
+                        var diff = player.Shield - float64(damage)
+                        if (diff >= 0) {
+                            player.Shield -= float64(damage)
+                        } else {
+                            player.Shield = 0
+                            player.Health += diff
+                        }
+
+                        //player.Health = player.Health - 10
+
+                        if (player.Health <= 0) {
+                            player.rect.x = 0
+                            player.rect.y = 0
+                            player.Health = 100
+
+                            //update shooter's scraps
+                            if (bullet.shooter != nil) {
+                                bullet.shooter.Scraps += 100
+                                bullet.shooter.XP += 100
+                            }
+                        }
                     }
-
                 }
             
             }
@@ -632,7 +657,7 @@ func moveBullets() {
                         removeBulletFromList(bullet)
 
                         //calculate damage dealing
-                        var damage = BASE_DAMAGE_VALUE + (bullet.shooter.Damage * 5)
+                        var damage = BASE_DAMAGE_VALUE + (bullet.damage * 5)
 
                         npc.Health -= float64(damage)
 
@@ -641,12 +666,15 @@ func moveBullets() {
                         if (npc.Health <= 0) {
                             removeNpcFromList(npc)
 
-                            //update shooter's scraps
-                            bullet.shooter.Scraps += ( int32(rand.Intn(51)) + 50 )
-                            bullet.shooter.XP += 20
+                            //only update bullet shooters shit if it was shot by a player
+                            if (bullet.shooter != nil) {
+                                //update shooter's scraps
+                                bullet.shooter.Scraps += ( int32(rand.Intn(51)) + 50 )
+                                bullet.shooter.XP += 20
 
-                            //drop item randomly
-                            dropItemRandomly(bullet.shooter, 75)
+                                //drop item randomly
+                                dropItemRandomly(bullet.shooter, 75)
+                            }
                         }
 
                     }
