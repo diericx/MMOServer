@@ -7,7 +7,7 @@ import (
 	"math/rand"
 )
 
-func handleShot(shotType string, shooter interface{}, damage int, rect rectangle, bullets *[]*bullet) {
+func handleShot(shotType string, shooter interface{}, damage int, rect Rectangle, bullets *[]*Bullet) {
 
 	var bulletShooterP *Player
 	var bulletShooterNPC *Npc
@@ -39,20 +39,20 @@ func handleShot(shotType string, shooter interface{}, damage int, rect rectangle
 	// bullets = append(bullets, newBullet)
 }
 
-func fireSingleShot(player *Player, bullets *[]*bullet) {
-	newBullet := new(bullet)
+func fireSingleShot(player *Player, bullets *[]*Bullet) {
+	newBullet := new(Bullet)
 	newBullet.ID = rand.Intn(1000)
-	newBullet.damage = player.Damage
+	newBullet.damage = player.damage
 	newBullet.rect = createRect(player.rect.x, player.rect.y, 0.17, 0.5)
 	newBullet.rect.rotation = player.rect.rotation
 	newBullet.shooter = player
 	*bullets = append(*bullets, newBullet)
 }
 
-func fireRadialShotgunShot(shooter *Npc, bullets *[]*bullet) {
+func fireRadialShotgunShot(shooter *Npc, bullets *[]*Bullet) {
 	var shooterObj = *shooter
 	for i := 0; i < 8; i++ {
-		newBullet := new(bullet)
+		newBullet := new(Bullet)
 		newBullet.ID = rand.Intn(1000)
 		newBullet.damage = shooterObj.damage
 		newBullet.rect = createRect(shooterObj.rect.x, shooterObj.rect.y, 0.17, 0.5)

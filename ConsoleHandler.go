@@ -29,7 +29,7 @@ func getConsoleInput() {
 						if err != nil {
 							fmt.Println("\"" + keywords[3] + "\" is not a valid integer!")
 						} else {
-							players[playerID].Scraps += int32(i)
+							players[playerID].scraps += int32(i)
 							fmt.Println("Succesfully gave player \"" + keywords[1] + "\" " + keywords[3] + " scraps!")
 						}
 					} else {

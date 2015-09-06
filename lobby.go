@@ -18,55 +18,48 @@ import (
 )
 
 type Player struct {
-	rect              rectangle
-	RWC               io.ReadWriteCloser
-	ID                string
-	Level             int
-	XP                int
-	Shooting          bool
-	Infamy            int
-	Health            float64
-	HealthCap         int
-	HealthRegen       int
-	Energy            float64
-	EnergyCap         int
-	EnergyRegen       int
-	Shield            float64
-	ShieldCap         int
-	ShieldRegen       int
-	FireRate          int
-	FireRateCooldown  int
-	Damage            int
-	Speed             int
-	WeaponCooldownCap float64
-	WeaponCooldown    float64
-	WeaponBulletCount int
-	Scraps            int32
-	X                 float64
-	Y                 float64
+	rect              Rectangle
+	rwc               io.ReadWriteCloser
+	id                string
+	level             int
+	xp                int
+	shooting          bool
+	infamy            int
+	health            float64
+	healthCap         int
+	healthRegen       int
+	energy            float64
+	energyCap         int
+	energyRegen       int
+	shield            float64
+	shieldCap         int
+	shieldRegen       int
+	fireRate          int
+	fireRateCooldown  int
+	damage            int
+	speed             int
+	weaponCooldownCap float64
+	weaponCooldown    float64
+	weaponBulletCount int
+	scraps            int32
+	x                 float64
+	y                 float64
 	xMovement         float64
 	yMovement         float64
-	Gear              []string
-	Inventory         []string
+	gear              []string
+	inventory         []string
 }
 
-type point struct {
+type Point struct {
 	x float64
 	y float64
 }
 
-type gearSet struct {
-	hull  int
-	laser int
-	wing  int
-	jet   int
-}
-
 type Npc struct {
-	rect         rectangle
-	ID           int
-	Type         int
-	Health       float64
+	rect         Rectangle
+	id           int
+	npcType      int
+	health       float64
 	damage       int
 	rotation     int
 	shotTime     int
@@ -74,20 +67,20 @@ type Npc struct {
 	shotType     string
 }
 
-type rectangle struct {
+type Rectangle struct {
 	y        float64
 	x        float64
 	width    float64
 	height   float64
 	rotation int
-	points   []point
+	points   []Point
 }
 
-type bullet struct {
+type Bullet struct {
 	shooter interface{}
 	damage  int
 	ID      int
-	rect    rectangle
+	rect    Rectangle
 }
 
 type Message struct {
@@ -146,19 +139,6 @@ type Update struct {
 	NpcHlths []float64
 }
 
-type BulletUpdate struct {
-	ID       string
-	Damage   string
-	X        float64 //change to float64
-	Y        float64
-	Rotation int
-}
-
-type BulletPacket struct {
-	Action  string
-	Bullets []*BulletUpdate
-}
-
 type Gear struct {
 	Success bool
 	Cockpit int
@@ -192,7 +172,7 @@ var (
 var partner = make(chan io.ReadWriteCloser)
 
 var players []*Player
-var bullets []*bullet
+var bullets []*Bullet
 var npcs []*Npc
 
 var shouldQuit = false
@@ -243,7 +223,7 @@ func main() {
 	go movePlayers()
 	go updatePlayerStats()
 	go updateNPCs()
-	go chat()
+	go sendData()
 	matchmake()
 }
 
@@ -261,23 +241,14 @@ func FloatToString(input_num float64) string {
 	return strconv.FormatFloat(input_num, 'f', 6, 64)
 }
 
-func normalize(p point) point {
-	var magnitude = math.Sqrt(p.x*p.x + p.y*p.y)
-	if magnitude > 0 {
-		p.x = p.x / magnitude
-		p.y = p.y / magnitude
-	}
-	return p
-}
-
 func spawnNPCs() {
 	for i := 0; i < 110; i++ {
 		newNPC := new(Npc)
-		newNPC.ID = rand.Intn(10000)
-		newNPC.Type = 1
+		newNPC.id = rand.Intn(10000)
+		newNPC.npcType = 1
 		newNPC.shotTime = -1
 		newNPC.shotCooldown = -1
-		newNPC.Health = 50
+		newNPC.health = 50
 		newNPC.rect.rotation = 0
 		var x = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
 		var y = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
@@ -288,12 +259,12 @@ func spawnNPCs() {
 
 	//create test NPC type 2
 	newNPC := new(Npc)
-	newNPC.ID = rand.Intn(10000)
-	newNPC.Type = 2
+	newNPC.id = rand.Intn(10000)
+	newNPC.npcType = 2
 	newNPC.damage = 2
 	newNPC.shotTime = 1000
 	newNPC.shotCooldown = 1000
-	newNPC.Health = 50
+	newNPC.health = 50
 	newNPC.rect.rotation = 0
 	var x float64 = 0
 	var y float64 = 0
@@ -305,7 +276,7 @@ func spawnNPCs() {
 func updateNPCs() {
 	for {
 		for _, npc := range npcs {
-			if npc.Type == 2 {
+			if npc.npcType == 2 {
 				npc.rect.x = rand.Float64()*5 - 2.5
 				npc.rect.y = rand.Float64()*5 - 2.5
 			}
@@ -328,58 +299,58 @@ func updatePlayerStats() {
 		for _, player := range players {
 
 			//update XP and Level
-			var currentXPCap float64 = float64(BASE_XP) * (math.Pow(float64(player.Level), float64(LEVEL_XP_FACTOR)))
+			var currentXPCap float64 = float64(BASE_XP) * (math.Pow(float64(player.level), float64(LEVEL_XP_FACTOR)))
 			var currentXPCapRounded = int(currentXPCap) //round number
-			if player.XP >= currentXPCapRounded {
-				var diff = player.XP - currentXPCapRounded
-				player.Level += 1
-				player.XP = diff
+			if player.xp >= currentXPCapRounded {
+				var diff = player.xp - currentXPCapRounded
+				player.level += 1
+				player.xp = diff
 			}
 
 			//update health stat
-			hullHealthCapAttr := getItemAttribute(player.Gear[0], "healthCap")
-			var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.HealthCap)) + hullHealthCapAttr
-			var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.HealthRegen))
-			if player.Health < healthCap {
-				player.Health += healthRegen
-				if player.Health > healthCap {
-					player.Health = healthCap
+			hullHealthCapAttr := getItemAttribute(player.gear[0], "healthCap")
+			var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.healthCap)) + hullHealthCapAttr
+			var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.healthRegen))
+			if player.health < healthCap {
+				player.health += healthRegen
+				if player.health > healthCap {
+					player.health = healthCap
 				}
 			}
 
 			//update shield stat
-			var shieldCap = BASE_SHIELD_CAP_VALUE + (10 * float64(player.ShieldCap))
-			var shieldRegen = BASE_SHIELD_REGEN_VALUE + (0.01 * float64(player.ShieldRegen))
-			if player.Shield < shieldCap {
-				player.Shield += shieldRegen
-				if player.Shield > shieldCap {
-					player.Shield = shieldCap
+			var shieldCap = BASE_SHIELD_CAP_VALUE + (10 * float64(player.shieldCap))
+			var shieldRegen = BASE_SHIELD_REGEN_VALUE + (0.01 * float64(player.shieldRegen))
+			if player.shield < shieldCap {
+				player.shield += shieldRegen
+				if player.shield > shieldCap {
+					player.shield = shieldCap
 				}
 			}
 
 			//update energy stat
-			var energyCap = BASE_ENERGY_CAP_VALUE + (10 * float64(player.EnergyCap))
-			var energyRegen = BASE_ENERGY_REGEN_VALUE + (0.01 * float64(player.EnergyRegen))
-			if player.Energy < energyCap {
-				player.Energy += energyRegen
-				if player.Energy > energyCap {
-					player.Energy = energyCap
+			var energyCap = BASE_ENERGY_CAP_VALUE + (10 * float64(player.energyCap))
+			var energyRegen = BASE_ENERGY_REGEN_VALUE + (0.01 * float64(player.energyRegen))
+			if player.energy < energyCap {
+				player.energy += energyRegen
+				if player.energy > energyCap {
+					player.energy = energyCap
 				}
 			}
 
 			//shoot
-			var fireRate = BASE_FIRE_RATE_VALUE - (10 * player.FireRate)
-			if player.Shooting {
-				player.FireRateCooldown -= 1
+			var fireRate = BASE_FIRE_RATE_VALUE - (10 * player.fireRate)
+			if player.shooting {
+				player.fireRateCooldown -= 1
 
-				if player.FireRateCooldown <= 0 {
-					player.FireRateCooldown = fireRate
+				if player.fireRateCooldown <= 0 {
+					player.fireRateCooldown = fireRate
 
 					// spawn new bullet
-					handleShot("singleShot", player, player.Damage, player.rect, &bullets)
+					handleShot("singleShot", player, player.damage, player.rect, &bullets)
 				}
 			} else {
-				player.FireRateCooldown = 0
+				player.fireRateCooldown = 0
 			}
 		}
 		time.Sleep((time.Second / time.Duration(1000)))
@@ -390,9 +361,9 @@ func movePlayers() {
 	for {
 		for _, player := range players {
 
-			wingSpeedAttr := getItemAttribute(player.Gear[2], "speed")
+			wingSpeedAttr := getItemAttribute(player.gear[2], "speed")
 
-			var speed = BASE_SPEED_VALUE + (0.5 * float64(player.Speed+int(wingSpeedAttr)))
+			var speed = BASE_SPEED_VALUE + (0.5 * float64(player.speed+int(wingSpeedAttr)))
 			player.rect.x = player.rect.x + (player.xMovement * (speed / 100))
 			player.rect.y = player.rect.y + (player.yMovement * (speed / 100))
 
@@ -456,26 +427,26 @@ func moveBullets() {
 						var damage = BASE_DAMAGE_VALUE + (bullet.damage * 5)
 
 						//Player takes damage to shield until zero, then takes health damage
-						var diff = player.Shield - float64(damage)
+						var diff = player.shield - float64(damage)
 						if diff >= 0 {
-							player.Shield -= float64(damage)
+							player.shield -= float64(damage)
 						} else {
-							player.Shield = 0
-							player.Health += diff
+							player.shield = 0
+							player.health += diff
 						}
 
 						//player.Health = player.Health - 10
 
-						if player.Health <= 0 {
+						if player.health <= 0 {
 							player.rect.x = 0
 							player.rect.y = 0
-							player.Health = 100
+							player.health = 100
 
 							//update shooter's scraps
 							if bulletShooterP != nil {
 								var shooter = *bulletShooterP
-								shooter.Scraps += 100
-								shooter.XP += 100
+								shooter.scraps += 100
+								shooter.xp += 100
 							}
 						}
 					}
@@ -495,19 +466,19 @@ func moveBullets() {
 						//calculate damage dealing
 						var damage = BASE_DAMAGE_VALUE + (bullet.damage * 5)
 
-						npc.Health -= float64(damage)
+						npc.health -= float64(damage)
 
 						//player.Health = player.Health - 10
 
-						if npc.Health <= 0 {
+						if npc.health <= 0 {
 							removeNpcFromList(npc)
 
 							//only update bullet shooters shit if it was shot by a player
 							if bulletShooterP != nil {
 								var shooter = *bulletShooterP
 								//update shooter's scraps
-								shooter.Scraps += (int32(rand.Intn(51)) + 50)
-								shooter.XP += 20
+								shooter.scraps += (int32(rand.Intn(51)) + 50)
+								shooter.xp += 20
 
 								//drop item randomly
 								dropItemRandomly(bulletShooterP, 75)
@@ -542,88 +513,44 @@ func matchmake() {
 	}
 }
 
-func createRect(x float64, y float64, width float64, height float64) rectangle {
-
-	var newRect rectangle
-
-	newRect.x = x
-	newRect.y = y
-	newRect.width = width
-	newRect.height = height
-
-	var w2 = width / 2
-	var h2 = height / 2
-
-	var point1 point
-	point1.x = -w2
-	point1.y = -h2
-	newRect.points = append(newRect.points, point1)
-
-	var point2 point
-	point2.x = w2
-	point2.y = -h2
-	newRect.points = append(newRect.points, point2)
-
-	var point3 point
-	point3.x = w2
-	point3.y = h2
-	newRect.points = append(newRect.points, point3)
-
-	var point4 point
-	point4.x = -w2
-	point4.y = h2
-	newRect.points = append(newRect.points, point4)
-
-	return newRect
-
-}
-
 func match(c io.ReadWriteCloser) {
 	// setup new player and its stats
 	newPlayer := new(Player)
-	newPlayer.RWC = c
-	newPlayer.ID = ""
-	newPlayer.Infamy = 0
-	newPlayer.Health = 100
-	newPlayer.HealthCap = 0
-	newPlayer.HealthRegen = 0
-	newPlayer.Energy = 50
-	newPlayer.EnergyCap = 0
-	newPlayer.EnergyRegen = 0
-	newPlayer.Shield = 10
-	newPlayer.ShieldCap = 0
-	newPlayer.ShieldRegen = 0 //per tenth of a second
-	newPlayer.FireRate = 0
-	newPlayer.FireRateCooldown = 0
-	newPlayer.Damage = 0
-	newPlayer.Speed = 0
-	newPlayer.Scraps = 0
-	newPlayer.WeaponCooldownCap = 0.5
-	newPlayer.WeaponCooldown = 0
-	newPlayer.WeaponBulletCount = 1
+	newPlayer.rwc = c
+	newPlayer.id = ""
+	newPlayer.infamy = 0
+	newPlayer.health = 100
+	newPlayer.healthCap = 0
+	newPlayer.healthRegen = 0
+	newPlayer.energy = 50
+	newPlayer.energyCap = 0
+	newPlayer.energyRegen = 0
+	newPlayer.shield = 10
+	newPlayer.shieldCap = 0
+	newPlayer.shieldRegen = 0 //per tenth of a second
+	newPlayer.fireRate = 0
+	newPlayer.fireRateCooldown = 0
+	newPlayer.damage = 0
+	newPlayer.speed = 0
+	newPlayer.scraps = 0
+	newPlayer.weaponCooldownCap = 0.5
+	newPlayer.weaponCooldown = 0
+	newPlayer.weaponBulletCount = 1
 
 	newPlayer.rect = createRect(0, 0, 3, 3)
 
-	newPlayer.Gear = []string{
+	newPlayer.gear = []string{
 		"H1",
 		"L1",
 		"W1",
 		"T1"}
 
-	newPlayer.Inventory = make([]string, 8)
+	newPlayer.inventory = make([]string, 8)
 
 	players = append(players, newPlayer)
 	fmt.Printf("\nPlayer Joined!\n>")
 	go getDataFromPlayer(newPlayer)
 
-}
-
-func rotatePoint(p point, angle float64) point {
-	var newP point
-	newP.x = (p.x * math.Cos(angle)) - (p.y * math.Sin(angle))
-	newP.y = (p.x * math.Sin(angle)) - (p.y * math.Cos(angle))
-
-	return newP
 }
 
 func findPlayerIndex(p *Player) int {
@@ -642,7 +569,7 @@ func findPlayerIndexByID(pID string) int {
 	var i = 0
 	var foundIndex = -1
 	for _, player := range players {
-		if player.ID == pID {
+		if player.id == pID {
 			foundIndex = i
 		}
 		i++
@@ -658,7 +585,7 @@ func removePlayerFromList(p *Player) {
 	}
 }
 
-func removeBulletFromList(b *bullet) {
+func removeBulletFromList(b *Bullet) {
 	var i = 0
 	var foundIndex = -1
 	for _, bullet := range bullets {
@@ -744,7 +671,7 @@ func dropItemRandomly(player *Player, chance int) {
 
 	var randInt = rand.Intn(101)
 
-	var openSlot = getNextOpenSlotInInventory(player.Inventory)
+	var openSlot = getNextOpenSlotInInventory(player.inventory)
 
 	if randInt <= chance {
 		var itemType = rand.Intn(3)
@@ -752,12 +679,12 @@ func dropItemRandomly(player *Player, chance int) {
 			//hull
 			var randItem = rand.Intn(NUMBER_OF_HULL_ITEMS) + 1
 			var randItemID = "H" + strconv.Itoa(randItem)
-			addItemToInventory(&player.Inventory, openSlot, randItemID)
+			addItemToInventory(&player.inventory, openSlot, randItemID)
 		} else if itemType == 1 {
 			//wings
 			var randItem = rand.Intn(NUMBER_OF_WING_ITEMS) + 1
 			var randItemID = "W" + strconv.Itoa(randItem)
-			addItemToInventory(&player.Inventory, openSlot, randItemID)
+			addItemToInventory(&player.inventory, openSlot, randItemID)
 		} else if itemType == 2 {
 			//lasers
 		}
@@ -771,7 +698,7 @@ func getDataFromPlayer(player *Player) {
 		var shouldRemove = false
 
 		buf := make([]byte, 1024)
-		n, err := player.RWC.Read(buf)
+		n, err := player.rwc.Read(buf)
 
 		if err != nil {
 			removePlayerFromList(player)
@@ -787,7 +714,7 @@ func getDataFromPlayer(player *Player) {
 
 		// fmt.Printf("%v\n", buf[0:n])
 
-		dec := codec.NewDecoder(player.RWC, &mh)
+		dec := codec.NewDecoder(player.rwc, &mh)
 		dec = codec.NewDecoderBytes(buf[0:n], &mh)
 		err = dec.Decode(res)
 
@@ -800,9 +727,9 @@ func getDataFromPlayer(player *Player) {
 			//fmt.Printf(res.ID )
 			if res.Action == "update" {
 
-				player.ID = res.ID
+				player.id = res.ID
 
-				player.Shooting = res.Shooting
+				player.shooting = res.Shooting
 
 				player.xMovement = res.X
 				player.yMovement = res.Y
@@ -841,83 +768,83 @@ func getDataFromPlayer(player *Player) {
 				//TO DO: ADD JSON SUPPORT
 
 				//put item to equip data in variables
-				var itemToEquip = player.Inventory[res.Value] //H1
+				var itemToEquip = player.inventory[res.Value] //H1
 				//put item currently wearing into variabls
 				var currentItem = ""
 
 				if string(itemToEquip[0]) == "W" {
-					currentItem = player.Gear[2]
+					currentItem = player.gear[2]
 					//replace equiped item
-					player.Gear[2] = itemToEquip
+					player.gear[2] = itemToEquip
 				} else if string(itemToEquip[0]) == "H" {
-					currentItem = player.Gear[0] //H2
+					currentItem = player.gear[0] //H2
 					//replace equiped item
-					player.Gear[0] = itemToEquip
+					player.gear[0] = itemToEquip
 				}
 
 				//remove equipped item from inventory
-				removeItemFromInventoryViaIndex(&player.Inventory, res.Value)
+				removeItemFromInventoryViaIndex(&player.inventory, res.Value)
 				//add item that was replaced
-				addItemToInventory(&player.Inventory, res.Value, currentItem)
+				addItemToInventory(&player.inventory, res.Value, currentItem)
 
 			} else if res.Action == "drop" {
 				fmt.Printf("%v", res.Value)
-				removeItemFromInventoryViaIndex(&player.Inventory, res.Value)
+				removeItemFromInventoryViaIndex(&player.inventory, res.Value)
 			} else if res.Action == "shoot" {
-				player.Health = player.Health
+				player.health = player.health
 			} else if res.Action == "upgradeHealthCap" {
-				if player.Scraps >= 100 && player.HealthCap < HEALTHCAP_CAP {
-					player.HealthCap += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.healthCap < HEALTHCAP_CAP {
+					player.healthCap += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeHealthRegen" {
-				if player.Scraps >= 100 && player.HealthRegen < HEALTH_REGEN_CAP {
-					player.HealthRegen += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.healthRegen < HEALTH_REGEN_CAP {
+					player.healthRegen += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeSpeed" {
-				if player.Scraps >= 100 && player.Speed < MOVE_SPEED_CAP {
-					player.Speed += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.speed < MOVE_SPEED_CAP {
+					player.speed += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeShieldCap" {
-				if player.Scraps >= 100 && player.ShieldCap < SHIELD_CAP {
-					player.ShieldCap += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.shieldCap < SHIELD_CAP {
+					player.shieldCap += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeShieldRegen" {
-				if player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP {
-					player.ShieldRegen += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
+					player.shieldRegen += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeEnergyCap" {
-				if player.Scraps >= 100 && player.EnergyCap < ENERGY_CAP_CAP {
-					player.EnergyCap += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.energyCap < ENERGY_CAP_CAP {
+					player.energyCap += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeEnergyRegen" {
-				if player.Scraps >= 100 && player.EnergyRegen < ENERGY_REGEN_CAP {
-					player.EnergyRegen += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.energyRegen < ENERGY_REGEN_CAP {
+					player.energyRegen += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeShieldRegen" {
-				if player.Scraps >= 100 && player.ShieldRegen < SHIELD_REGEN_CAP {
-					player.ShieldRegen += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
+					player.shieldRegen += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeDamage" {
-				if player.Scraps >= 100 && player.Damage < DAMAGE_CAP {
-					player.Damage += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.damage < DAMAGE_CAP {
+					player.damage += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "upgradeFireRate" {
-				if player.Scraps >= 100 && player.FireRate < FIRE_RATE_CAP {
-					player.FireRate += 1
-					player.Scraps -= 100
+				if player.scraps >= 100 && player.fireRate < FIRE_RATE_CAP {
+					player.fireRate += 1
+					player.scraps -= 100
 				}
 			} else if res.Action == "jump" {
-				if player.Scraps >= 200 {
-					player.Scraps -= 200
+				if player.scraps >= 200 {
+					player.scraps -= 200
 					player.rect.x = res.X
 					player.rect.y = res.Y
 				}
@@ -929,7 +856,7 @@ func getDataFromPlayer(player *Player) {
 
 		if shouldRemove == true {
 			for i, otherPlayer := range players {
-				if otherPlayer.RWC == player.RWC {
+				if otherPlayer.rwc == player.rwc {
 					players = append(players[:i], players[i+1:]...)
 					return
 				}
@@ -972,7 +899,7 @@ func intToBinaryString(i int) string {
 }
 
 // {"Action":"shoot", "ID":"87", "X":"0", "Y":"0", "Rotation":"22"}
-func chat() {
+func sendData() {
 
 	var speedMod = 30
 	var sentWelcomeMsg = false
@@ -1000,7 +927,7 @@ func chat() {
 			npcYs := make([]float64, 0)
 			npcHlths := make([]float64, 0)
 
-			if player.ID != "" {
+			if player.id != "" {
 
 				//put all bullets into one array that are CLOSE TO THE PLAYER
 				//WARNING: MAY CAUSE LAG
@@ -1019,20 +946,20 @@ func chat() {
 				//get all data from other players
 				//WARNING: MAY CAUSE LAG
 				for _, otherPlayer := range players {
-					if player.ID == "1" && player != otherPlayer {
+					if player.id == "1" && player != otherPlayer {
 						//fmt.Printf("X: %v, Y: %v\n", otherPlayer.rect.x, otherPlayer.rect.y)
 						//fmt.Printf("%v\n", player.Gear.wings)
 					}
 
 					var dist = math.Sqrt(math.Pow(otherPlayer.rect.x-player.rect.x, 2) + math.Pow(otherPlayer.rect.y-player.rect.y, 2))
 					if dist <= PLAYER_LOAD_DIST && player != otherPlayer {
-						otherPlayerIDs = append(otherPlayerIDs, otherPlayer.ID)
+						otherPlayerIDs = append(otherPlayerIDs, otherPlayer.id)
 						otherPlayerXs = append(otherPlayerXs, otherPlayer.rect.x)
 						otherPlayerYs = append(otherPlayerYs, otherPlayer.rect.y)
 						otherPlayerRots = append(otherPlayerRots, otherPlayer.rect.rotation)
-						otherPlayerHlths = append(otherPlayerHlths, otherPlayer.Health)
+						otherPlayerHlths = append(otherPlayerHlths, otherPlayer.health)
 
-						gearSet := []string{otherPlayer.Gear[0], otherPlayer.Gear[1], otherPlayer.Gear[2], otherPlayer.Gear[3]}
+						gearSet := []string{otherPlayer.gear[0], otherPlayer.gear[1], otherPlayer.gear[2], otherPlayer.gear[3]}
 						otherPlayerGearSets = append(otherPlayerGearSets, gearSet)
 					}
 				}
@@ -1042,11 +969,11 @@ func chat() {
 				for _, npc := range npcs {
 					var dist = math.Sqrt(math.Pow(npc.rect.x-player.rect.x, 2) + math.Pow(npc.rect.y-player.rect.y, 2))
 					if dist <= PLAYER_LOAD_DIST {
-						npcIDs = append(npcIDs, npc.ID)
-						npcTypes = append(npcTypes, npc.Type)
+						npcIDs = append(npcIDs, npc.id)
+						npcTypes = append(npcTypes, npc.npcType)
 						npcXs = append(npcXs, npc.rect.x)
 						npcYs = append(npcYs, npc.rect.y)
-						npcHlths = append(npcHlths, npc.Health)
+						npcHlths = append(npcHlths, npc.health)
 					}
 				}
 
@@ -1063,28 +990,28 @@ func chat() {
 				//create update packet
 				res1D := &Update{
 					Action:              "playerUpdate",
-					ID:                  player.ID,
-					Level:               player.Level,
-					XP:                  player.XP,
-					Infamy:              player.Infamy,
-					FireRate:            player.FireRate,
-					Health:              player.Health,
-					HealthCap:           player.HealthCap,
-					HealthRegen:         player.HealthRegen,
-					Energy:              player.Energy,
-					EnergyCap:           player.EnergyCap,
-					EnergyRegen:         player.EnergyRegen,
-					Shield:              player.Shield,
-					ShieldCap:           player.ShieldCap,
-					ShieldRegen:         player.ShieldRegen,
-					Speed:               player.Speed,
-					Damage:              player.Damage,
-					Scraps:              player.Scraps,
+					ID:                  player.id,
+					Level:               player.level,
+					XP:                  player.xp,
+					Infamy:              player.infamy,
+					FireRate:            player.fireRate,
+					Health:              player.health,
+					HealthCap:           player.healthCap,
+					HealthRegen:         player.healthRegen,
+					Energy:              player.energy,
+					EnergyCap:           player.energyCap,
+					EnergyRegen:         player.energyRegen,
+					Shield:              player.shield,
+					ShieldCap:           player.shieldCap,
+					ShieldRegen:         player.shieldRegen,
+					Speed:               player.speed,
+					Damage:              player.damage,
+					Scraps:              player.scraps,
 					X:                   player.rect.x,
 					Y:                   player.rect.y,
 					Rotation:            player.rect.rotation,
-					Gear:                player.Gear,
-					Inventory:           player.Inventory,
+					Gear:                player.gear,
+					Inventory:           player.inventory,
 					IsNPC:               false,
 					OtherPlayerIDs:      otherPlayerIDs,
 					OtherPlayerXs:       otherPlayerXs,
@@ -1104,7 +1031,7 @@ func chat() {
 				}
 
 				var newByteArray []byte
-				enc := codec.NewEncoder(player.RWC, &mh)
+				enc := codec.NewEncoder(player.rwc, &mh)
 				enc = codec.NewEncoderBytes(&newByteArray, &mh)
 				enc.Encode(res1D)
 
@@ -1114,14 +1041,14 @@ func chat() {
 				//format message message
 				stringMessage = header + stringMessage
 				//print message
-				if player.ID == "1" {
+				if player.id == "1" {
 					//fmt.Printf(stringMessage + "\n")
 				}
 				// fmt.Printf("Header: %v\n", header);
 				// fmt.Printf("Packet Length: %v\n", len(newByteArray));
 
 				//send message
-				go fmt.Fprint(player.RWC, stringMessage)
+				go fmt.Fprint(player.rwc, stringMessage)
 			} else {
 				if sentWelcomeMsg == false {
 					sentWelcomeMsg = true
@@ -1131,7 +1058,7 @@ func chat() {
 					}
 
 					var newByteArray []byte
-					enc := codec.NewEncoder(player.RWC, &mh)
+					enc := codec.NewEncoder(player.rwc, &mh)
 					enc = codec.NewEncoderBytes(&newByteArray, &mh)
 					enc.Encode(res1F)
 
@@ -1143,7 +1070,7 @@ func chat() {
 
 					stringMessage = "<?xml version=\"1.0\"?>\n<cross-domain-policy>\n<allow-access-from domain=\"*\" to-ports=\"7770-7780\"/>\n</cross-domain-policy>\n"
 					//send message
-					go fmt.Fprint(player.RWC, stringMessage)
+					go fmt.Fprint(player.rwc, stringMessage)
 				}
 			}
 		}

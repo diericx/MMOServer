@@ -4,24 +4,24 @@ import (
 	"math"
 )
 
-func compareRects(objRect rectangle, bulletRect rectangle) bool {
+func compareRects(objRect Rectangle, bulletRect Rectangle) bool {
 
-	var pRectRot rectangle = objRect
+	var pRectRot Rectangle = objRect
 	rotateRectsPoints(pRectRot, (float64(objRect.rotation)/180.0)*3.14159)
 
-	var bRectRot rectangle = bulletRect
+	var bRectRot Rectangle = bulletRect
 	rotateRectsPoints(bRectRot, (float64(bulletRect.rotation)/180.0)*3.14159)
 
 	//CHECK X
 
-	var v point
+	var v Point
 	v.x = pRectRot.width / 2
 	v.y = 0
 	v = rotatePoint(v, (float64(objRect.rotation)/180.0)*3.14159)
 
 	v = normalize(v)
 
-	var a point = pRectRot.points[2]
+	var a Point = pRectRot.points[2]
 
 	var av float64 = dotProduct(a, v)
 
@@ -37,7 +37,7 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 	movePoints(pRectRot)
 	movePoints(bRectRot)
 
-	var c point
+	var c Point
 	c.x = math.Abs(pRectRot.x - bRectRot.x)
 	c.y = math.Abs(pRectRot.y - bRectRot.y)
 
@@ -53,7 +53,7 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 	bRectRot = bulletRect
 	rotateRectsPoints(bRectRot, (float64(bulletRect.rotation)/180.0)*3.14159)
 
-	var w point
+	var w Point
 	w.y = pRectRot.height / 2
 	w.x = 0
 	w = rotatePoint(w, (float64(objRect.rotation)/180.0)*3.14159)
@@ -83,19 +83,72 @@ func compareRects(objRect rectangle, bulletRect rectangle) bool {
 	return !result && !result2
 }
 
-func rotateRectsPoints(r rectangle, angle float64) {
+func rotateRectsPoints(r Rectangle, angle float64) {
 	for _, p := range r.points {
 		p = rotatePoint(p, angle)
 	}
 }
 
-func dotProduct(pointA point, pointB point) float64 {
+func dotProduct(pointA Point, pointB Point) float64 {
 	return math.Abs(pointA.x*pointB.x) + math.Abs(pointA.y*pointB.y)
 }
 
-func movePoints(rect rectangle) {
+func movePoints(rect Rectangle) {
 	for _, p := range rect.points {
 		p.x = p.x + rect.x
 		p.y = p.y + rect.y
 	}
+}
+
+func normalize(p Point) Point {
+	var magnitude = math.Sqrt(p.x*p.x + p.y*p.y)
+	if magnitude > 0 {
+		p.x = p.x / magnitude
+		p.y = p.y / magnitude
+	}
+	return p
+}
+
+func createRect(x float64, y float64, width float64, height float64) Rectangle {
+
+	var newRect Rectangle
+
+	newRect.x = x
+	newRect.y = y
+	newRect.width = width
+	newRect.height = height
+
+	var w2 = width / 2
+	var h2 = height / 2
+
+	var point1 Point
+	point1.x = -w2
+	point1.y = -h2
+	newRect.points = append(newRect.points, point1)
+
+	var point2 Point
+	point2.x = w2
+	point2.y = -h2
+	newRect.points = append(newRect.points, point2)
+
+	var point3 Point
+	point3.x = w2
+	point3.y = h2
+	newRect.points = append(newRect.points, point3)
+
+	var point4 Point
+	point4.x = -w2
+	point4.y = h2
+	newRect.points = append(newRect.points, point4)
+
+	return newRect
+
+}
+
+func rotatePoint(p Point, angle float64) Point {
+	var newP Point
+	newP.x = (p.x * math.Cos(angle)) - (p.y * math.Sin(angle))
+	newP.y = (p.x * math.Sin(angle)) - (p.y * math.Cos(angle))
+
+	return newP
 }
