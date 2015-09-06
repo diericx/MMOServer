@@ -1,18 +1,35 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	// "encoding/json"
 	// "io/ioutil"
 	"math/rand"
 )
 
-func handleShot(shotType string, player *player, damage int, rect rectangle, bullets *[]*bullet) {
+func handleShot(shotType string, shooter interface{}, damage int, rect rectangle, bullets *[]*bullet) {
+
+	var bulletShooterP *Player
+	var bulletShooterNPC *Npc
+
+	//check if bullet.shooter is a player
+	if p, ok := shooter.(*Player); ok {
+		bulletShooterP = p
+	} else {
+		/* not player */
+	}
+
+	//check if bullet.shooter is an NPC
+	if npc, ok := shooter.(*Npc); ok {
+		bulletShooterNPC = npc
+	} else {
+		/* not player */
+	}
 
 	if shotType == "singleShot" {
-		fireSingleShot(player, bullets)
+		fireSingleShot(bulletShooterP, bullets)
 	} else if shotType == "radialShotgunShot" {
-		fireRadialShotgunShot(rect, damage, bullets)
+		fireRadialShotgunShot(bulletShooterNPC, bullets)
 	}
 	// newBullet := new (bullet)
 	// newBullet.ID = rand.Intn(1000)
@@ -22,7 +39,7 @@ func handleShot(shotType string, player *player, damage int, rect rectangle, bul
 	// bullets = append(bullets, newBullet)
 }
 
-func fireSingleShot(player *player, bullets *[]*bullet) {
+func fireSingleShot(player *Player, bullets *[]*bullet) {
 	newBullet := new(bullet)
 	newBullet.ID = rand.Intn(1000)
 	newBullet.damage = player.Damage
@@ -32,12 +49,15 @@ func fireSingleShot(player *player, bullets *[]*bullet) {
 	*bullets = append(*bullets, newBullet)
 }
 
-func fireRadialShotgunShot(rect rectangle, damage int, bullets *[]*bullet) {
-	newBullet := new(bullet)
-	newBullet.ID = rand.Intn(1000)
-	newBullet.damage = damage
-	newBullet.rect = createRect(rect.x, rect.y, 0.17, 0.5)
-	newBullet.rect.rotation = rect.rotation
-	newBullet.shooter = nil
-	*bullets = append(*bullets, newBullet)
+func fireRadialShotgunShot(shooter *Npc, bullets *[]*bullet) {
+	var shooterObj = *shooter
+	for i := 0; i < 8; i++ {
+		newBullet := new(bullet)
+		newBullet.ID = rand.Intn(1000)
+		newBullet.damage = shooterObj.damage
+		newBullet.rect = createRect(shooterObj.rect.x, shooterObj.rect.y, 0.17, 0.5)
+		newBullet.rect.rotation = i * 45
+		newBullet.shooter = shooter
+		*bullets = append(*bullets, newBullet)
+	}
 }
