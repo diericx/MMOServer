@@ -4,9 +4,10 @@ package main
 
 import (
 	"io"
+	"os"
 	//"io/ioutil"
 	"fmt"
-	"log"
+	//"log"
 	"math"
 	"math/rand"
 	"net"
@@ -19,7 +20,7 @@ import (
 
 type Player struct {
 	rect              Rectangle
-	rwc               io.ReadWriteCloser
+	addr              net.UDPAddr
 	id                string
 	level             int
 	xp                int
@@ -495,28 +496,80 @@ func moveBullets() {
 	}
 }
 
-func matchmake() {
-	fmt.Printf("Hosting match making server\n")
-
-	listener, err := net.Listen("tcp", listenAddr)
+/* A Simple function to verify error */
+func CheckError(err error) {
 	if err != nil {
-		log.Fatal(err)
-	}
-	for !shouldQuit {
-		c, err := listener.Accept()
-		// c.SetReadBuffer(1)
-		// c.SetWriteBuffer(1)
-		if err != nil {
-			log.Fatal(err)
-		}
-		go match(c)
+		fmt.Println("Error: ", err)
+		os.Exit(0)
 	}
 }
 
-func match(c io.ReadWriteCloser) {
+func playerAlreadyExists(addr *net.UDPAddr) *Player {
+	var foundPlayer *Player
+	for _, player := range players {
+		var playerAddress = &player.addr
+		var inputAddress = addr
+		if playerAddress.String() == inputAddress.String() {
+			foundPlayer = player
+		}
+	}
+	return foundPlayer
+}
+
+func matchmake() {
+	fmt.Printf("Hosting match making server\n")
+
+	// listener, err := net.Listen("tcp", listenAddr)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// for !shouldQuit {
+	// 	c, err := listener.Accept()
+	// 	// c.SetReadBuffer(1)
+	// 	// c.SetWriteBuffer(1)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	go match(c)
+	// }
+
+	/* Lets prepare a address at any address at port 10001*/
+	ServerAddr, err := net.ResolveUDPAddr("udp", listenAddr)
+	CheckError(err)
+
+	/* Now listen at selected port */
+	ServerConn, err := net.ListenUDP("udp", ServerAddr)
+	CheckError(err)
+	defer ServerConn.Close()
+
+	buf := make([]byte, 1024)
+
+	for !shouldQuit {
+
+		n, addr, err := ServerConn.ReadFromUDP(buf)
+
+		var foundPlayer = playerAlreadyExists(addr)
+
+		if foundPlayer == nil {
+			fmt.Println("Must create player")
+			var player = instantiatePlayer(addr)
+			getDataFromPlayer(player, buf, n)
+		} else {
+			getDataFromPlayer(foundPlayer, buf, n)
+		}
+
+		//fmt.Println("Received ", string(buf[0:n]), " from ", addr)
+
+		if err != nil {
+			fmt.Println("Error: ", err)
+		}
+	}
+}
+
+func instantiatePlayer(addr *net.UDPAddr) *Player {
 	// setup new player and its stats
 	newPlayer := new(Player)
-	newPlayer.rwc = c
+	newPlayer.addr = *addr
 	newPlayer.id = ""
 	newPlayer.infamy = 0
 	newPlayer.health = 100
@@ -549,7 +602,10 @@ func match(c io.ReadWriteCloser) {
 
 	players = append(players, newPlayer)
 	fmt.Printf("\nPlayer Joined!\n>")
-	go getDataFromPlayer(newPlayer)
+	fmt.Println("%v", len(players))
+
+	return newPlayer
+	//go getDataFromPlayer(newPlayer)
 
 }
 
@@ -692,18 +748,10 @@ func dropItemRandomly(player *Player, chance int) {
 	}
 }
 
-func getDataFromPlayer(player *Player) {
+func getDataFromPlayer(player *Player, buf []byte, n int) {
 
 	for {
 		var shouldRemove = false
-
-		buf := make([]byte, 1024)
-		n, err := player.rwc.Read(buf)
-
-		if err != nil {
-			removePlayerFromList(player)
-			break
-		}
 
 		// var stringData = string(buf[0:n])
 		// fmt.Printf(stringData)
@@ -714,9 +762,11 @@ func getDataFromPlayer(player *Player) {
 
 		// fmt.Printf("%v\n", buf[0:n])
 
-		dec := codec.NewDecoder(player.rwc, &mh)
+		var r io.Reader
+
+		dec := codec.NewDecoder(r, &mh)
 		dec = codec.NewDecoderBytes(buf[0:n], &mh)
-		err = dec.Decode(res)
+		err := dec.Decode(res)
 
 		if err == nil {
 			// fmt.Printf("%v", res.X)
@@ -856,7 +906,7 @@ func getDataFromPlayer(player *Player) {
 
 		if shouldRemove == true {
 			for i, otherPlayer := range players {
-				if otherPlayer.rwc == player.rwc {
+				if otherPlayer.addr.String() == player.addr.String() {
 					players = append(players[:i], players[i+1:]...)
 					return
 				}
@@ -1030,8 +1080,9 @@ func sendData() {
 					NpcHlths:            npcHlths,
 				}
 
+				var w io.Writer
 				var newByteArray []byte
-				enc := codec.NewEncoder(player.rwc, &mh)
+				enc := codec.NewEncoder(w, &mh)
 				enc = codec.NewEncoderBytes(&newByteArray, &mh)
 				enc.Encode(res1D)
 
@@ -1048,7 +1099,7 @@ func sendData() {
 				// fmt.Printf("Packet Length: %v\n", len(newByteArray));
 
 				//send message
-				go fmt.Fprint(player.rwc, stringMessage)
+				//go fmt.Fprint(player.rwc, stringMessage)
 			} else {
 				if sentWelcomeMsg == false {
 					sentWelcomeMsg = true
@@ -1057,8 +1108,9 @@ func sendData() {
 						Data:   "connected!",
 					}
 
+					var w io.Writer
 					var newByteArray []byte
-					enc := codec.NewEncoder(player.rwc, &mh)
+					enc := codec.NewEncoder(w, &mh)
 					enc = codec.NewEncoderBytes(&newByteArray, &mh)
 					enc.Encode(res1F)
 
@@ -1070,7 +1122,7 @@ func sendData() {
 
 					stringMessage = "<?xml version=\"1.0\"?>\n<cross-domain-policy>\n<allow-access-from domain=\"*\" to-ports=\"7770-7780\"/>\n</cross-domain-policy>\n"
 					//send message
-					go fmt.Fprint(player.rwc, stringMessage)
+					//go fmt.Fprint(player.rwc, stringMessage)
 				}
 			}
 		}
