@@ -166,6 +166,8 @@ const listenAddr = ":7777"
 
 const baseAddr = "http://192.168.1.18:3000/api/v1/"
 
+var serverConn *net.UDPConn
+
 var (
 	mh codec.MsgpackHandle
 )
@@ -538,15 +540,15 @@ func matchmake() {
 	CheckError(err)
 
 	/* Now listen at selected port */
-	ServerConn, err := net.ListenUDP("udp", ServerAddr)
+	serverConn, err = net.ListenUDP("udp", ServerAddr)
 	CheckError(err)
-	defer ServerConn.Close()
+	defer serverConn.Close()
 
 	buf := make([]byte, 1024)
 
 	for !shouldQuit {
 
-		n, addr, err := ServerConn.ReadFromUDP(buf)
+		n, addr, err := serverConn.ReadFromUDP(buf)
 
 		var foundPlayer = playerAlreadyExists(addr)
 
@@ -750,169 +752,173 @@ func dropItemRandomly(player *Player, chance int) {
 
 func getDataFromPlayer(player *Player, buf []byte, n int) {
 
-	for {
-		var shouldRemove = false
+	//for {
+	var shouldRemove = false
 
-		// var stringData = string(buf[0:n])
-		// fmt.Printf(stringData)
-		// dec := json.NewDecoder(strings.NewReader(stringData))
+	//var stringData = string(buf[0:n])
+	// fmt.Println(stringData)
+	// dec := json.NewDecoder(strings.NewReader(stringData))
 
-		var res = &Update{}
-		// dec.Decode(&res)
+	var res = &Update{}
+	// dec.Decode(&res)
 
-		// fmt.Printf("%v\n", buf[0:n])
+	// fmt.Printf("%v\n", buf[0:n])
 
-		var r io.Reader
+	var r io.Reader
 
-		dec := codec.NewDecoder(r, &mh)
-		dec = codec.NewDecoderBytes(buf[0:n], &mh)
-		err := dec.Decode(res)
+	dec := codec.NewDecoder(r, &mh)
+	dec = codec.NewDecoderBytes(buf[0:n], &mh)
+	err := dec.Decode(res)
 
-		if err == nil {
-			// fmt.Printf("%v", res.X)
-			// res := &Update{}
+	// fmt.Println("%v", res.X)
 
-			//decoder.Decode(n)
-			// json.Unmarshal([]byte(buf[0:n]), &res)
-			//fmt.Printf(res.ID )
-			if res.Action == "update" {
+	//fmt.Println(res.Action)
 
-				player.id = res.ID
+	if err == nil {
+		// fmt.Printf("%v", res.X)
+		// res := &Update{}
 
-				player.shooting = res.Shooting
+		//decoder.Decode(n)
+		// json.Unmarshal([]byte(buf[0:n]), &res)
+		//fmt.Printf(res.ID )
+		if res.Action == "update" {
 
-				player.xMovement = res.X
-				player.yMovement = res.Y
+			player.id = res.ID
 
-				player.rect.rotation = res.Rotation
+			player.shooting = res.Shooting
 
-				//print("%v", player.xMovement)
+			player.xMovement = res.X
+			player.yMovement = res.Y
 
-				// if (player.gear.cockpit == -1) {
-				//     var link = baseAddr + "get_users_item_set?user_id=" + player.ID
-				//     resp, err := http.Get(link)
-				//     if err != nil {
+			player.rect.rotation = res.Rotation
 
-				//     } else {
-				//         // fmt.Printf("%v", resp)
-				//         contents, err := ioutil.ReadAll(resp.Body)
-				//         if err == nil {
-				//             // fmt.Printf("%s\n", string(contents))
-				//             dec2 := json.NewDecoder(strings.NewReader(string(contents)))
-				//             var res = &Gear{}
-				//             dec2.Decode(&res)
+			//print("%v", player.xMovement)
 
-				//             player.gear.cockpit = res.Cockpit
-				//             player.gear.lasers = res.Lasers
-				//             player.gear.wings = res.Wings
-				//             player.gear.jets = res.Jets
-				//         } else {
+			// if (player.gear.cockpit == -1) {
+			//     var link = baseAddr + "get_users_item_set?user_id=" + player.ID
+			//     resp, err := http.Get(link)
+			//     if err != nil {
 
-				//         }
-				//     }
-				// }
+			//     } else {
+			//         // fmt.Printf("%v", resp)
+			//         contents, err := ioutil.ReadAll(resp.Body)
+			//         if err == nil {
+			//             // fmt.Printf("%s\n", string(contents))
+			//             dec2 := json.NewDecoder(strings.NewReader(string(contents)))
+			//             var res = &Gear{}
+			//             dec2.Decode(&res)
 
-				//test := string(buf[0:n])
-			} else if res.Action == "equip" {
+			//             player.gear.cockpit = res.Cockpit
+			//             player.gear.lasers = res.Lasers
+			//             player.gear.wings = res.Wings
+			//             player.gear.jets = res.Jets
+			//         } else {
 
-				//TO DO: ADD JSON SUPPORT
+			//         }
+			//     }
+			// }
 
-				//put item to equip data in variables
-				var itemToEquip = player.inventory[res.Value] //H1
-				//put item currently wearing into variabls
-				var currentItem = ""
+			//test := string(buf[0:n])
+		} else if res.Action == "equip" {
 
-				if string(itemToEquip[0]) == "W" {
-					currentItem = player.gear[2]
-					//replace equiped item
-					player.gear[2] = itemToEquip
-				} else if string(itemToEquip[0]) == "H" {
-					currentItem = player.gear[0] //H2
-					//replace equiped item
-					player.gear[0] = itemToEquip
-				}
+			//TO DO: ADD JSON SUPPORT
 
-				//remove equipped item from inventory
-				removeItemFromInventoryViaIndex(&player.inventory, res.Value)
-				//add item that was replaced
-				addItemToInventory(&player.inventory, res.Value, currentItem)
+			//put item to equip data in variables
+			var itemToEquip = player.inventory[res.Value] //H1
+			//put item currently wearing into variabls
+			var currentItem = ""
 
-			} else if res.Action == "drop" {
-				fmt.Printf("%v", res.Value)
-				removeItemFromInventoryViaIndex(&player.inventory, res.Value)
-			} else if res.Action == "shoot" {
-				player.health = player.health
-			} else if res.Action == "upgradeHealthCap" {
-				if player.scraps >= 100 && player.healthCap < HEALTHCAP_CAP {
-					player.healthCap += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeHealthRegen" {
-				if player.scraps >= 100 && player.healthRegen < HEALTH_REGEN_CAP {
-					player.healthRegen += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeSpeed" {
-				if player.scraps >= 100 && player.speed < MOVE_SPEED_CAP {
-					player.speed += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeShieldCap" {
-				if player.scraps >= 100 && player.shieldCap < SHIELD_CAP {
-					player.shieldCap += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeShieldRegen" {
-				if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
-					player.shieldRegen += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeEnergyCap" {
-				if player.scraps >= 100 && player.energyCap < ENERGY_CAP_CAP {
-					player.energyCap += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeEnergyRegen" {
-				if player.scraps >= 100 && player.energyRegen < ENERGY_REGEN_CAP {
-					player.energyRegen += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeShieldRegen" {
-				if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
-					player.shieldRegen += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeDamage" {
-				if player.scraps >= 100 && player.damage < DAMAGE_CAP {
-					player.damage += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "upgradeFireRate" {
-				if player.scraps >= 100 && player.fireRate < FIRE_RATE_CAP {
-					player.fireRate += 1
-					player.scraps -= 100
-				}
-			} else if res.Action == "jump" {
-				if player.scraps >= 200 {
-					player.scraps -= 200
-					player.rect.x = res.X
-					player.rect.y = res.Y
-				}
+			if string(itemToEquip[0]) == "W" {
+				currentItem = player.gear[2]
+				//replace equiped item
+				player.gear[2] = itemToEquip
+			} else if string(itemToEquip[0]) == "H" {
+				currentItem = player.gear[0] //H2
+				//replace equiped item
+				player.gear[0] = itemToEquip
 			}
-			// fmt.Printf( strconv.FormatFloat(res.X, 'f', 6, 64) )
-		} else {
-			shouldRemove = true
-		}
 
-		if shouldRemove == true {
-			for i, otherPlayer := range players {
-				if otherPlayer.addr.String() == player.addr.String() {
-					players = append(players[:i], players[i+1:]...)
-					return
-				}
+			//remove equipped item from inventory
+			removeItemFromInventoryViaIndex(&player.inventory, res.Value)
+			//add item that was replaced
+			addItemToInventory(&player.inventory, res.Value, currentItem)
+
+		} else if res.Action == "drop" {
+			fmt.Printf("%v", res.Value)
+			removeItemFromInventoryViaIndex(&player.inventory, res.Value)
+		} else if res.Action == "shoot" {
+			player.health = player.health
+		} else if res.Action == "upgradeHealthCap" {
+			if player.scraps >= 100 && player.healthCap < HEALTHCAP_CAP {
+				player.healthCap += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeHealthRegen" {
+			if player.scraps >= 100 && player.healthRegen < HEALTH_REGEN_CAP {
+				player.healthRegen += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeSpeed" {
+			if player.scraps >= 100 && player.speed < MOVE_SPEED_CAP {
+				player.speed += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeShieldCap" {
+			if player.scraps >= 100 && player.shieldCap < SHIELD_CAP {
+				player.shieldCap += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeShieldRegen" {
+			if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
+				player.shieldRegen += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeEnergyCap" {
+			if player.scraps >= 100 && player.energyCap < ENERGY_CAP_CAP {
+				player.energyCap += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeEnergyRegen" {
+			if player.scraps >= 100 && player.energyRegen < ENERGY_REGEN_CAP {
+				player.energyRegen += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeShieldRegen" {
+			if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
+				player.shieldRegen += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeDamage" {
+			if player.scraps >= 100 && player.damage < DAMAGE_CAP {
+				player.damage += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "upgradeFireRate" {
+			if player.scraps >= 100 && player.fireRate < FIRE_RATE_CAP {
+				player.fireRate += 1
+				player.scraps -= 100
+			}
+		} else if res.Action == "jump" {
+			if player.scraps >= 200 {
+				player.scraps -= 200
+				player.rect.x = res.X
+				player.rect.y = res.Y
+			}
+		}
+		// fmt.Printf( strconv.FormatFloat(res.X, 'f', 6, 64) )
+	} else {
+		shouldRemove = true
+	}
+
+	if shouldRemove == true {
+		for i, otherPlayer := range players {
+			if otherPlayer.addr.String() == player.addr.String() {
+				players = append(players[:i], players[i+1:]...)
+				return
 			}
 		}
 	}
+	//}
 
 }
 
@@ -1087,10 +1093,12 @@ func sendData() {
 				enc.Encode(res1D)
 
 				var stringMessage = string(newByteArray)
+				//fmt.Println(stringMessage)
 				//create header
-				var header = intToBinaryString(len(stringMessage))
+				//var header = intToBinaryString(len(stringMessage))
+				//fmt.Println(len(stringMessage))
 				//format message message
-				stringMessage = header + stringMessage
+				stringMessage = stringMessage
 				//print message
 				if player.id == "1" {
 					//fmt.Printf(stringMessage + "\n")
@@ -1100,6 +1108,7 @@ func sendData() {
 
 				//send message
 				//go fmt.Fprint(player.rwc, stringMessage)
+				sendMessage([]byte(stringMessage), serverConn, &player.addr)
 			} else {
 				if sentWelcomeMsg == false {
 					sentWelcomeMsg = true
@@ -1117,11 +1126,13 @@ func sendData() {
 					var stringMessage = string(newByteArray)
 					//---create header---
 					var header = intToBinaryString(len(stringMessage))
+					fmt.Println(header)
 					//---add header---
-					stringMessage = header + stringMessage
+					stringMessage = stringMessage
 
 					stringMessage = "<?xml version=\"1.0\"?>\n<cross-domain-policy>\n<allow-access-from domain=\"*\" to-ports=\"7770-7780\"/>\n</cross-domain-policy>\n"
 					//send message
+					sendMessage([]byte(stringMessage), serverConn, &player.addr)
 					//go fmt.Fprint(player.rwc, stringMessage)
 				}
 			}
