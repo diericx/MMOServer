@@ -21,6 +21,7 @@ import (
 type Player struct {
 	rect              Rectangle
 	addr              net.UDPAddr
+	lastUpdate        time.Time
 	id                string
 	level             int
 	xp                int
@@ -170,6 +171,8 @@ var serverConn *net.UDPConn
 
 var (
 	mh codec.MsgpackHandle
+	r  io.Reader
+	w  io.Writer
 )
 
 var partner = make(chan io.ReadWriteCloser)
@@ -224,7 +227,7 @@ func main() {
 	go getConsoleInput()
 	go moveBullets()
 	go movePlayers()
-	go updatePlayerStats()
+	//go updatePlayerStats()
 	go updateNPCs()
 	go sendData()
 	matchmake()
@@ -301,59 +304,67 @@ func updatePlayerStats() {
 	for {
 		for _, player := range players {
 
-			//update XP and Level
-			var currentXPCap float64 = float64(BASE_XP) * (math.Pow(float64(player.level), float64(LEVEL_XP_FACTOR)))
-			var currentXPCapRounded = int(currentXPCap) //round number
-			if player.xp >= currentXPCapRounded {
-				var diff = player.xp - currentXPCapRounded
-				player.level += 1
-				player.xp = diff
-			}
-
-			//update health stat
-			hullHealthCapAttr := getItemAttribute(player.gear[0], "healthCap")
-			var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.healthCap)) + hullHealthCapAttr
-			var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.healthRegen))
-			if player.health < healthCap {
-				player.health += healthRegen
-				if player.health > healthCap {
-					player.health = healthCap
-				}
-			}
-
-			//update shield stat
-			var shieldCap = BASE_SHIELD_CAP_VALUE + (10 * float64(player.shieldCap))
-			var shieldRegen = BASE_SHIELD_REGEN_VALUE + (0.01 * float64(player.shieldRegen))
-			if player.shield < shieldCap {
-				player.shield += shieldRegen
-				if player.shield > shieldCap {
-					player.shield = shieldCap
-				}
-			}
-
-			//update energy stat
-			var energyCap = BASE_ENERGY_CAP_VALUE + (10 * float64(player.energyCap))
-			var energyRegen = BASE_ENERGY_REGEN_VALUE + (0.01 * float64(player.energyRegen))
-			if player.energy < energyCap {
-				player.energy += energyRegen
-				if player.energy > energyCap {
-					player.energy = energyCap
-				}
-			}
-
-			//shoot
-			var fireRate = BASE_FIRE_RATE_VALUE - (10 * player.fireRate)
-			if player.shooting {
-				player.fireRateCooldown -= 1
-
-				if player.fireRateCooldown <= 0 {
-					player.fireRateCooldown = fireRate
-
-					// spawn new bullet
-					handleShot("singleShot", player, player.damage, player.rect, &bullets)
-				}
+			//check if player is not respinding
+			if time.Since(player.lastUpdate).Seconds() >= 0.5 {
+				//remove player
+				removePlayer(player)
+				break
 			} else {
-				player.fireRateCooldown = 0
+				//------update player data-------
+				//update XP and Level
+				var currentXPCap float64 = float64(BASE_XP) * (math.Pow(float64(player.level), float64(LEVEL_XP_FACTOR)))
+				var currentXPCapRounded = int(currentXPCap) //round number
+				if player.xp >= currentXPCapRounded {
+					var diff = player.xp - currentXPCapRounded
+					player.level += 1
+					player.xp = diff
+				}
+
+				//update health stat
+				hullHealthCapAttr := getItemAttribute(player.gear[0], "healthCap")
+				var healthCap = float64(BASE_HEALTH_CAP_VALUE) + (10 * float64(player.healthCap)) + hullHealthCapAttr
+				var healthRegen = BASE_HEALTH_REGEN_VALUE + (0.002 * float64(player.healthRegen))
+				if player.health < healthCap {
+					player.health += healthRegen
+					if player.health > healthCap {
+						player.health = healthCap
+					}
+				}
+
+				//update shield stat
+				var shieldCap = BASE_SHIELD_CAP_VALUE + (10 * float64(player.shieldCap))
+				var shieldRegen = BASE_SHIELD_REGEN_VALUE + (0.01 * float64(player.shieldRegen))
+				if player.shield < shieldCap {
+					player.shield += shieldRegen
+					if player.shield > shieldCap {
+						player.shield = shieldCap
+					}
+				}
+
+				//update energy stat
+				var energyCap = BASE_ENERGY_CAP_VALUE + (10 * float64(player.energyCap))
+				var energyRegen = BASE_ENERGY_REGEN_VALUE + (0.01 * float64(player.energyRegen))
+				if player.energy < energyCap {
+					player.energy += energyRegen
+					if player.energy > energyCap {
+						player.energy = energyCap
+					}
+				}
+
+				//shoot
+				var fireRate = BASE_FIRE_RATE_VALUE - (10 * player.fireRate)
+				if player.shooting {
+					player.fireRateCooldown -= 1
+
+					if player.fireRateCooldown <= 0 {
+						player.fireRateCooldown = fireRate
+
+						// spawn new bullet
+						handleShot("singleShot", player, player.damage, player.rect, &bullets)
+					}
+				} else {
+					player.fireRateCooldown = 0
+				}
 			}
 		}
 		time.Sleep((time.Second / time.Duration(1000)))
@@ -535,7 +546,7 @@ func matchmake() {
 	// 	go match(c)
 	// }
 
-	/* Lets prepare a address at any address at port 10001*/
+	/* Lets prepare an address at any address at port 10001*/
 	ServerAddr, err := net.ResolveUDPAddr("udp", listenAddr)
 	CheckError(err)
 
@@ -751,9 +762,7 @@ func dropItemRandomly(player *Player, chance int) {
 }
 
 func getDataFromPlayer(player *Player, buf []byte, n int) {
-
-	//for {
-	var shouldRemove = false
+	//update players last update variable to current time
 
 	//var stringData = string(buf[0:n])
 	// fmt.Println(stringData)
@@ -763,8 +772,6 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 	// dec.Decode(&res)
 
 	// fmt.Printf("%v\n", buf[0:n])
-
-	var r io.Reader
 
 	dec := codec.NewDecoder(r, &mh)
 	dec = codec.NewDecoderBytes(buf[0:n], &mh)
@@ -782,6 +789,8 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 		// json.Unmarshal([]byte(buf[0:n]), &res)
 		//fmt.Printf(res.ID )
 		if res.Action == "update" {
+
+			player.lastUpdate = time.Now()
 
 			player.id = res.ID
 
@@ -906,20 +915,18 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 			}
 		}
 		// fmt.Printf( strconv.FormatFloat(res.X, 'f', 6, 64) )
-	} else {
-		shouldRemove = true
-	}
-
-	if shouldRemove == true {
-		for i, otherPlayer := range players {
-			if otherPlayer.addr.String() == player.addr.String() {
-				players = append(players[:i], players[i+1:]...)
-				return
-			}
-		}
 	}
 	//}
 
+}
+
+func removePlayer(player *Player) {
+	for i, otherPlayer := range players {
+		if otherPlayer.addr.String() == player.addr.String() {
+			players = append(players[:i], players[i+1:]...)
+			return
+		}
+	}
 }
 
 func CToGoString(c []byte) string {
@@ -1086,7 +1093,6 @@ func sendData() {
 					NpcHlths:            npcHlths,
 				}
 
-				var w io.Writer
 				var newByteArray []byte
 				enc := codec.NewEncoder(w, &mh)
 				enc = codec.NewEncoderBytes(&newByteArray, &mh)
@@ -1117,7 +1123,6 @@ func sendData() {
 						Data:   "connected!",
 					}
 
-					var w io.Writer
 					var newByteArray []byte
 					enc := codec.NewEncoder(w, &mh)
 					enc = codec.NewEncoderBytes(&newByteArray, &mh)
