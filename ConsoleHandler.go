@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+func println(msg string) {
+	fmt.Print(">" + msg + "\n")
+}
+
 func getConsoleInput() {
 	for {
 		reader := bufio.NewReader(os.Stdin)
@@ -27,22 +31,22 @@ func getConsoleInput() {
 						//try to convert value to string
 						i, err := strconv.ParseInt(keywords[3], 10, 32)
 						if err != nil {
-							fmt.Println("\"" + keywords[3] + "\" is not a valid integer!")
+							println(">\"" + keywords[3] + "\" is not a valid integer!")
 						} else {
 							players[playerID].scraps += int32(i)
-							fmt.Println("Succesfully gave player \"" + keywords[1] + "\" " + keywords[3] + " scraps!")
+							println(">Succesfully gave player \"" + keywords[1] + "\" " + keywords[3] + " scraps!")
 						}
 					} else {
-						fmt.Println("\"" + keywords[2] + "\" is not a known command!")
+						println(">\"" + keywords[2] + "\" is not a known command!")
 					}
 				} else {
-					fmt.Println("Player with id \"" + keywords[1] + "\" not found!")
+					println(">Player with id \"" + keywords[1] + "\" not found!")
 				}
 			} else {
-				fmt.Println("Not enough parameters supplied for \"give\" command!")
+				println(">Not enough parameters supplied for \"give\" command!")
 			}
 		} else {
-			fmt.Println("\"" + keywords[0] + "\" is not a known command!")
+			println(">\"" + keywords[0] + "\" is not a known command!")
 		}
 	}
 }

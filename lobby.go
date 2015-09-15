@@ -82,7 +82,13 @@ type Bullet struct {
 	shooter interface{}
 	damage  int
 	ID      int
+	origin  Vector2
 	rect    Rectangle
+}
+
+type Vector2 struct {
+	x float64
+	y float64
 }
 
 type Message struct {
@@ -227,7 +233,7 @@ func main() {
 	go getConsoleInput()
 	go moveBullets()
 	go movePlayers()
-	//go updatePlayerStats()
+	go updatePlayerStats()
 	go updateNPCs()
 	go sendData()
 	matchmake()
@@ -399,8 +405,20 @@ func movePlayers() {
 
 }
 
+func distance(p1 Vector2, p2 Vector2) float64 {
+	dist := math.Sqrt(math.Pow(p1.x-p2.x, 2) + math.Pow(p1.y-p2.y, 2))
+	return dist
+}
+
 func moveBullets() {
 	for {
+
+		for _, bullet := range bullets {
+			bulletPos := Vector2{x: bullet.rect.x, y: bullet.rect.y}
+			if distance(bullet.origin, bulletPos) > 10 {
+				removeBulletFromList(bullet)
+			}
+		}
 
 		for _, bullet := range bullets {
 			var bulletRadians float64 = (float64(bullet.rect.rotation+90) / 180.0) * 3.14159
@@ -530,7 +548,7 @@ func playerAlreadyExists(addr *net.UDPAddr) *Player {
 }
 
 func matchmake() {
-	fmt.Printf("Hosting match making server\n")
+	//println("Hosting match making server")
 
 	// listener, err := net.Listen("tcp", listenAddr)
 	// if err != nil {
@@ -564,7 +582,7 @@ func matchmake() {
 		var foundPlayer = playerAlreadyExists(addr)
 
 		if foundPlayer == nil {
-			fmt.Println("Must create player")
+			println("Must create player")
 			var player = instantiatePlayer(addr)
 			getDataFromPlayer(player, buf, n)
 		} else {
@@ -614,8 +632,7 @@ func instantiatePlayer(addr *net.UDPAddr) *Player {
 	newPlayer.inventory = make([]string, 8)
 
 	players = append(players, newPlayer)
-	fmt.Printf("\nPlayer Joined!\n>")
-	fmt.Println("%v", len(players))
+	println("Player Joined!")
 
 	return newPlayer
 	//go getDataFromPlayer(newPlayer)
@@ -777,8 +794,6 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 	dec = codec.NewDecoderBytes(buf[0:n], &mh)
 	err := dec.Decode(res)
 
-	// fmt.Println("%v", res.X)
-
 	//fmt.Println(res.Action)
 
 	if err == nil {
@@ -853,7 +868,7 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 			addItemToInventory(&player.inventory, res.Value, currentItem)
 
 		} else if res.Action == "drop" {
-			fmt.Printf("%v", res.Value)
+			println(string(res.Value))
 			removeItemFromInventoryViaIndex(&player.inventory, res.Value)
 		} else if res.Action == "shoot" {
 			player.health = player.health
@@ -1130,8 +1145,7 @@ func sendData() {
 
 					var stringMessage = string(newByteArray)
 					//---create header---
-					var header = intToBinaryString(len(stringMessage))
-					fmt.Println(header)
+					//var header = intToBinaryString(len(stringMessage))
 					//---add header---
 					stringMessage = stringMessage
 
