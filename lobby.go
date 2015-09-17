@@ -84,6 +84,7 @@ type Bullet struct {
 	ID      int
 	origin  Vector2
 	rect    Rectangle
+	bulletRange int
 }
 
 type Vector2 struct {
@@ -262,6 +263,7 @@ func spawnNPCs() {
 		newNPC.shotCooldown = -1
 		newNPC.health = 50
 		newNPC.rect.rotation = 0
+		newNPC.range = 10
 		var x = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
 		var y = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
 		newNPC.rect = createRect(x, y, 3, 3)
@@ -415,7 +417,8 @@ func moveBullets() {
 
 		for _, bullet := range bullets {
 			bulletPos := Vector2{x: bullet.rect.x, y: bullet.rect.y}
-			if distance(bullet.origin, bulletPos) > 10 {
+			var playerRange int
+			if distance(bullet.origin, bulletPos) > bullet.bulletRange {
 				removeBulletFromList(bullet)
 			}
 		}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	// "encoding/json"
 	// "io/ioutil"
 	"math/rand"
@@ -9,53 +9,49 @@ import (
 
 func handleShot(shotType string, shooter interface{}, damage int, rect Rectangle, bullets *[]*Bullet) {
 
-	var bulletShooterP *Player
-	var bulletShooterNPC *Npc
-
-	//check if bullet.shooter is a player
-	if p, ok := shooter.(*Player); ok {
-		bulletShooterP = p
-	} else {
-		/* not player */
-	}
-
-	//check if bullet.shooter is an NPC
-	if npc, ok := shooter.(*Npc); ok {
-		bulletShooterNPC = npc
-	} else {
-		/* not player */
-	}
-
 	if shotType == "singleShot" {
-		fireSingleShot(bulletShooterP, bullets)
+		fireSingleShot(shooter, bullets)
 	} else if shotType == "radialShotgunShot" {
-		fireRadialShotgunShot(bulletShooterNPC, bullets)
+		fireRadialShotgunShot(shooter, bullets)
 	}
 
 }
 
-func fireSingleShot(shooter *Player, bullets *[]*Bullet) {
-	fmt.Println("fire shot")
-	newBullet := new(Bullet)
-	newBullet.ID = rand.Intn(1000)
-	newBullet.damage = shooter.damage
-	newBullet.origin = Vector2{x: shooter.rect.x, y: shooter.rect.y}
-	newBullet.rect = createRect(shooter.rect.x, shooter.rect.y, 0.17, 0.5)
-	newBullet.rect.rotation = shooter.rect.rotation
-	newBullet.shooter = shooter
+func fireSingleShot(shooter interface{}, bullets *[]*Bullet) {
+	var newBullet = fireBullet(shooter)
 	*bullets = append(*bullets, newBullet)
 }
 
-func fireRadialShotgunShot(shooter *Npc, bullets *[]*Bullet) {
-	var shooterObj = *shooter
+func fireRadialShotgunShot(shooter interface{}, bullets *[]*Bullet) {
 	for i := 0; i < 8; i++ {
-		newBullet := new(Bullet)
-		newBullet.ID = rand.Intn(1000)
-		newBullet.damage = shooterObj.damage
-		newBullet.origin = Vector2{x: shooter.rect.x, y: shooter.rect.y}
-		newBullet.rect = createRect(shooterObj.rect.x, shooterObj.rect.y, 0.17, 0.5)
-		newBullet.rect.rotation = i * 45
-		newBullet.shooter = shooter
+		var newBullet = fireBullet(shooter)
+		newBullet.rect.rotation = i*45
 		*bullets = append(*bullets, newBullet)
 	}
+}
+
+func fireBullet(shooter interface{}) *Bullet {
+	//instantiate bullet
+	newBullet := new(Bullet)
+
+	//check if bullet.shooter is a player
+	if p, ok := shooter.(*Player); ok {
+		//player
+		newBullet.shooter = p
+		updateBulletAttributes(newBullet, p.damage, p.rect, p.rect.rotation, getItemAttribute(p.gear[1], "range"))
+	} else if npc, ok := shooter.(*Npc); ok {
+		//npc
+		newBullet.shooter = npc
+		updateBulletAttributes(newBullet, npc.damage, npc.rect, npc.rect.rotation, npc.range)
+	}
+
+	return newBullet
+}
+
+func updateBulletAttributes(newBullet *Bullet, damage int, rect Rectangle, rotation int, range int) {
+	newBullet.ID = rand.Intn(1000)
+	newBullet.damage = damage
+	newBullet.origin = Vector2{rect.x, rect.y}
+	newBullet.rect = createRect(rect.x, rect.y, 0.17, 0.5)
+	newBullet.rect.rotation = rotation
 }
