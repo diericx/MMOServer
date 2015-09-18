@@ -42,16 +42,17 @@ func fireBullet(shooter interface{}) *Bullet {
 	} else if npc, ok := shooter.(*Npc); ok {
 		//npc
 		newBullet.shooter = npc
-		updateBulletAttributes(newBullet, npc.damage, npc.rect, npc.rect.rotation, npc.range)
+		updateBulletAttributes(newBullet, npc.damage, npc.rect, npc.rect.rotation, float64(npc.bulletRange) )
 	}
 
 	return newBullet
 }
 
-func updateBulletAttributes(newBullet *Bullet, damage int, rect Rectangle, rotation int, range int) {
+func updateBulletAttributes(newBullet *Bullet, damage int, rect Rectangle, rotation int, bulletRange float64) {
 	newBullet.ID = rand.Intn(1000)
 	newBullet.damage = damage
 	newBullet.origin = Vector2{rect.x, rect.y}
 	newBullet.rect = createRect(rect.x, rect.y, 0.17, 0.5)
 	newBullet.rect.rotation = rotation
+	newBullet.bulletRange = bulletRange
 }

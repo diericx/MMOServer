@@ -64,6 +64,7 @@ type Npc struct {
 	health       float64
 	damage       int
 	rotation     int
+	bulletRange int
 	shotTime     int
 	shotCooldown int
 	shotType     string
@@ -84,7 +85,7 @@ type Bullet struct {
 	ID      int
 	origin  Vector2
 	rect    Rectangle
-	bulletRange int
+	bulletRange float64
 }
 
 type Vector2 struct {
@@ -220,6 +221,9 @@ var ENERGY_MOD = 10
 var NUMBER_OF_WING_ITEMS = 2
 var NUMBER_OF_HULL_ITEMS = 2
 
+var METEOR_MIN_DIST float64 = 75
+var METEOR_MAX_DIST float64 = 110
+
 //leveling
 var BASE_XP = 100
 var LEVEL_XP_FACTOR = 4
@@ -254,6 +258,10 @@ func FloatToString(input_num float64) string {
 	return strconv.FormatFloat(input_num, 'f', 6, 64)
 }
 
+func randFloatInRange(min float64, max float64) float64 {
+	return ( rand.Float64() * ( max - min ) ) + min
+}
+
 func spawnNPCs() {
 	for i := 0; i < 110; i++ {
 		newNPC := new(Npc)
@@ -263,9 +271,17 @@ func spawnNPCs() {
 		newNPC.shotCooldown = -1
 		newNPC.health = 50
 		newNPC.rect.rotation = 0
-		newNPC.range = 10
-		var x = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
-		var y = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
+		newNPC.bulletRange = 10
+		// var x = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
+		// var y = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
+		//Generate random location in sepcified field
+		var randAngle = rand.Float64() * 360
+		var randRad = randAngle * math.Pi / 180
+		var randRadius = randFloatInRange(METEOR_MIN_DIST, METEOR_MAX_DIST)
+		fmt.Println(randRadius)
+		var x = math.Cos(randRad) * randRadius
+		var y = math.Sin(randRad) * randRadius//( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
+
 		newNPC.rect = createRect(x, y, 3, 3)
 
 		npcs = append(npcs, newNPC)
@@ -280,6 +296,7 @@ func spawnNPCs() {
 	newNPC.shotCooldown = 1000
 	newNPC.health = 50
 	newNPC.rect.rotation = 0
+	newNPC.bulletRange = 15
 	var x float64 = 0
 	var y float64 = 0
 	newNPC.rect = createRect(x, y, 3, 3)
@@ -417,7 +434,6 @@ func moveBullets() {
 
 		for _, bullet := range bullets {
 			bulletPos := Vector2{x: bullet.rect.x, y: bullet.rect.y}
-			var playerRange int
 			if distance(bullet.origin, bulletPos) > bullet.bulletRange {
 				removeBulletFromList(bullet)
 			}
