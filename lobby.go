@@ -223,6 +223,11 @@ var NUMBER_OF_HULL_ITEMS = 2
 
 var METEOR_MIN_DIST float64 = 75
 var METEOR_MAX_DIST float64 = 110
+var METEOR_MAX_AMMOUNT int = 150
+
+var NPC_2_MIN_DIST float64 = METEOR_MIN_DIST - 20
+var NPC_2_MAX_DIST float64 = NPC_2_MIN_DIST - 25
+var NPC_2_MAX_AMMOUNT int = 150
 
 //leveling
 var BASE_XP = 100
@@ -263,30 +268,6 @@ func randFloatInRange(min float64, max float64) float64 {
 }
 
 func spawnNPCs() {
-	for i := 0; i < 110; i++ {
-		newNPC := new(Npc)
-		newNPC.id = rand.Intn(10000)
-		newNPC.npcType = 1
-		newNPC.shotTime = -1
-		newNPC.shotCooldown = -1
-		newNPC.health = 50
-		newNPC.rect.rotation = 0
-		newNPC.bulletRange = 10
-		// var x = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
-		// var y = ((rand.Float64() * ARENA_SIZE) - (ARENA_SIZE / 2))
-		//Generate random location in sepcified field
-		var randAngle = rand.Float64() * 360
-		var randRad = randAngle * math.Pi / 180
-		var randRadius = randFloatInRange(METEOR_MIN_DIST, METEOR_MAX_DIST)
-		fmt.Println(randRadius)
-		var x = math.Cos(randRad) * randRadius
-		var y = math.Sin(randRad) * randRadius//( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
-
-		newNPC.rect = createRect(x, y, 3, 3)
-
-		npcs = append(npcs, newNPC)
-	}
-
 	//create test NPC type 2
 	newNPC := new(Npc)
 	newNPC.id = rand.Intn(10000)
@@ -304,10 +285,36 @@ func spawnNPCs() {
 	npcs = append(npcs, newNPC)
 }
 
+func spawnNPC(npc_type int, damage int, shotTime int, shotCooldown int, health float64, bullet_range int, min_dist float64, max_dist float64 ) {
+	newNPC := new(Npc)
+	newNPC.id = rand.Intn(10000)
+	newNPC.npcType = npc_type
+	newNPC.shotTime = shotTime
+	newNPC.shotCooldown = shotCooldown
+	newNPC.health = health
+	newNPC.rect.rotation = 0
+	newNPC.bulletRange = bullet_range
+	var randAngle = rand.Float64() * 360
+	var randRad = randAngle * math.Pi / 180
+	var randRadius = randFloatInRange(min_dist, max_dist)
+	var x = math.Cos(randRad) * randRadius
+	var y = math.Sin(randRad) * randRadius//( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
+	newNPC.rect = createRect(x, y, 3, 3)
+	npcs = append(npcs, newNPC)
+}
+
 func updateNPCs() {
 	for {
+		//count of meteors
+		var meteor_count = 0
+		var npc_2_count = 0
+
 		for _, npc := range npcs {
-			if npc.npcType == 2 {
+			if npc.npcType == 1 {
+				//count amount of meteors
+				meteor_count += 1
+			} else if npc.npcType == 2 {
+				npc_2_count += 1
 				npc.rect.x = rand.Float64()*5 - 2.5
 				npc.rect.y = rand.Float64()*5 - 2.5
 			}
@@ -321,6 +328,33 @@ func updateNPCs() {
 				}
 			}
 		}
+
+		if meteor_count < METEOR_MAX_AMMOUNT {
+			for i := 0; i < (METEOR_MAX_AMMOUNT - meteor_count); i++ {
+				spawnNPC(1, 0, -1, -1, 50, 15, METEOR_MIN_DIST, METEOR_MAX_DIST)
+				// newNPC := new(Npc)
+				// newNPC.id = rand.Intn(10000)
+				// newNPC.npcType = 1
+				// newNPC.shotTime = -1
+				// newNPC.shotCooldown = -1
+				// newNPC.health = 50
+				// newNPC.rect.rotation = 0
+				// newNPC.bulletRange = 10k
+				// var randAngle = rand.Float64() * 360
+				// var randRad = randAngle * math.Pi / 180
+				// var randRadius = randFloatInRange(METEOR_MIN_DIST, METEOR_MAX_DIST)
+				// var x = math.Cos(randRad) * randRadius
+				// var y = math.Sin(randRad) * randRadius//( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
+				// newNPC.rect = createRect(x, y, 3, 3)
+				// npcs = append(npcs, newNPC)
+			}
+		}
+		if npc_2_count < NPC_2_MAX_AMMOUNT {
+			for i := 0; i < (NPC_2_MAX_AMMOUNT - npc_2_count); i++ {
+				spawnNPC(2, 2, 1000, 1000, 50, 15, METEOR_MIN_DIST, METEOR_MAX_DIST)
+			}
+		}
+
 		time.Sleep((time.Second / time.Duration(1000)))
 	}
 }
