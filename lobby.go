@@ -59,6 +59,7 @@ type Point struct {
 
 type Npc struct {
 	rect         Rectangle
+	origin Vector2
 	id           int
 	npcType      int
 	health       float64
@@ -228,7 +229,8 @@ var METEOR_MAX_AMMOUNT int = 150
 var NPC_2_MIN_DIST float64 = METEOR_MIN_DIST - 20
 var NPC_2_MAX_DIST float64 = NPC_2_MIN_DIST - 25
 var NPC_2_MAX_AMMOUNT int = 150
-
+var NPC_2_MAX_MOVE_DIST float64 = 0.1
+var NPC_2_SIGHT float64 = 15
 //leveling
 var BASE_XP = 100
 var LEVEL_XP_FACTOR = 4
@@ -300,7 +302,56 @@ func spawnNPC(npc_type int, damage int, shotTime int, shotCooldown int, health f
 	var x = math.Cos(randRad) * randRadius
 	var y = math.Sin(randRad) * randRadius//( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
 	newNPC.rect = createRect(x, y, 3, 3)
+	newNPC.origin = Vector2{x: newNPC.rect.x, y: newNPC.rect.y}
 	npcs = append(npcs, newNPC)
+}
+
+func moveEnemyRandomly(rect *Rectangle, targetPos Vector2) {
+	var deltaY = rect.y - targetPos.y
+	var deltaX = rect.x - targetPos.x
+	var d float64
+
+	var targetAngleInRads = math.Atan2(deltaY, deltaX)
+	if (targetAngleInRads < 0) {
+		targetAngleInRads += 2*math.Pi
+	}
+	var targetAngleInDegrees float64 = targetAngleInRads * 180 / math.Pi
+
+	var randAngle float64 = float64(rand.Intn(360))
+
+	if (deltaX == 0) {
+		d = 0
+	} else {
+		d = randAngle - targetAngleInDegrees
+		if (d < -180){ d += 360};
+        if (d > 180){ d -= 360};
+        d = math.Abs(d)
+	} 
+
+	var multiplier = (-1 * (d - 180)) / 180
+
+	// fmt.Println("Move Dist: %v; Target Angle: %v; Rand Angle: %v",
+	// 			d, 
+	// 			multiplier,
+	// 			targetAngleInDegrees,
+	// 			randAngle)
+
+	var rectCopy = *rect
+	rectCopy.x = rectCopy.x + NPC_2_MAX_MOVE_DIST * multiplier * math.Cos(randAngle);
+	rectCopy.y = rectCopy.y + NPC_2_MAX_MOVE_DIST * multiplier * math.Sin(randAngle);
+	*rect = rectCopy
+}
+
+func isAPlayerNear(pos Vector2, sightRange float64) bool {
+	var value = false;
+	for _, player := range players {
+		var dist = math.Sqrt( math.Pow(player.rect.x - pos.x, 2) + math.Pow(player.rect.y - pos.y, 2) )
+		if (dist <= sightRange) {
+			value = true;
+			break
+		}
+	}
+	return value
 }
 
 func updateNPCs() {
@@ -315,8 +366,11 @@ func updateNPCs() {
 				meteor_count += 1
 			} else if npc.npcType == 2 {
 				npc_2_count += 1
-				npc.rect.x = rand.Float64()*5 - 2.5
-				npc.rect.y = rand.Float64()*5 - 2.5
+				//if (npc_2_count == 1) {
+					moveEnemyRandomly(&npc.rect, npc.origin)
+				//}
+				// npc.rect.x = npc.rect.x + rand.Float64() - 0.5
+				// npc.rect.y = npc.rect.y + rand.Float64() - 0.5
 			}
 
 			if npc.shotTime != -1 {
@@ -324,7 +378,9 @@ func updateNPCs() {
 					npc.shotCooldown -= 1
 				} else if npc.shotCooldown <= 0 {
 					npc.shotCooldown = npc.shotTime
-					handleShot("radialShotgunShot", npc, 0, npc.rect, &bullets)
+					if (isAPlayerNear(Vector2{x: npc.rect.x, y: npc.rect.y}, NPC_2_SIGHT)) {
+						handleShot("radialShotgunShot", npc, 0, npc.rect, &bullets)
+					}
 				}
 			}
 		}
@@ -351,6 +407,7 @@ func updateNPCs() {
 		}
 		if npc_2_count < NPC_2_MAX_AMMOUNT {
 			for i := 0; i < (NPC_2_MAX_AMMOUNT - npc_2_count); i++ {
+				//spawnNPC(2, 2, 1000, 1000, 50, 15, METEOR_MIN_DIST, METEOR_MAX_DIST)
 				spawnNPC(2, 2, 1000, 1000, 50, 15, METEOR_MIN_DIST, METEOR_MAX_DIST)
 			}
 		}
