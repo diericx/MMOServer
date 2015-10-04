@@ -4,6 +4,8 @@ import (
 	"math"
 )
 
+var bulletsToRemove = make([]*Bullet, 0)
+
 func compareRects(objRect Rectangle, bulletRect Rectangle) bool {
 
 	var pRectRot Rectangle = objRect
@@ -81,6 +83,33 @@ func compareRects(objRect Rectangle, bulletRect Rectangle) bool {
 	// fmt.Printf("%t\n", result2)
 
 	return !result && !result2
+}
+
+func addBulletToRemoveList(b *Bullet) {
+	bulletsToRemove = append(bulletsToRemove, b)
+}
+
+func removeBulletFromList(bullets *[]*Bullet, b *Bullet) {
+	var i = 0
+	var foundIndex = -1
+	var bulletsCopy = *bullets
+	for _, bullet := range *bullets {
+		if b == bullet {
+			foundIndex = i
+		}
+		i++
+	}
+	
+	if foundIndex != -1 {
+		*bullets = append(bulletsCopy[:foundIndex], bulletsCopy[foundIndex+1:]...)
+	}
+}
+
+func clearBulletRemoveList(bullets *[]*Bullet) {
+	for _, bullet := range bulletsToRemove {
+		removeBulletFromList(bullets, bullet)
+	}
+	bulletsToRemove = make([]*Bullet, 0)
 }
 
 func rotateRectsPoints(r Rectangle, angle float64) {

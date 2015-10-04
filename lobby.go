@@ -526,7 +526,8 @@ func moveBullets() {
 		for _, bullet := range bullets {
 			bulletPos := Vector2{x: bullet.rect.x, y: bullet.rect.y}
 			if distance(bullet.origin, bulletPos) > bullet.bulletRange {
-				removeBulletFromList(bullet)
+				//removeBulletFromList(&bullets, bullet)
+				addBulletToRemoveList(bullet)
 			}
 		}
 
@@ -562,7 +563,9 @@ func moveBullets() {
 					if bulletShooterP != player {
 
 						//Remove bullet once it hits a player
-						removeBulletFromList(bullet)
+						//removeBulletFromList(bullet)
+						//bulletsToRemove = append(bulletsToRemove, bullet)
+						addBulletToRemoveList(bullet)
 						bulletRemoved = true
 
 						//calculate damage dealing
@@ -600,10 +603,12 @@ func moveBullets() {
 			if bulletRemoved == false {
 				for _, npc := range npcs {
 
-					if compareRects(npc.rect, bullet.rect) == true && bulletShooterNPC != npc {
+					if compareRects(npc.rect, bullet.rect) == true && bulletShooterNPC == nil {
 
 						//Remove bullet once it hits a player
-						removeBulletFromList(bullet)
+						//bulletsToRemove = append(bulletsToRemove, bullet)
+						addBulletToRemoveList(bullet)
+						//removeBulletFromList(bullet)
 
 						//calculate damage dealing
 						var damage = BASE_DAMAGE_VALUE + (bullet.damage * 5)
@@ -778,20 +783,6 @@ func removePlayerFromList(p *Player) {
 
 	if foundIndex != -1 {
 		players = append(players[:foundIndex], players[foundIndex+1:]...)
-	}
-}
-
-func removeBulletFromList(b *Bullet) {
-	var i = 0
-	var foundIndex = -1
-	for _, bullet := range bullets {
-		if b == bullet {
-			foundIndex = i
-		}
-		i++
-	}
-	if foundIndex != -1 {
-		bullets = append(bullets[:foundIndex], bullets[foundIndex+1:]...)
 	}
 }
 
@@ -1266,6 +1257,10 @@ func sendData() {
 				}
 			}
 		}
+
+		//remove bullets AFTER sending data
+		clearBulletRemoveList(&bullets)
+
 		time.Sleep(1 * (time.Second / time.Duration(speedMod)))
 	}
 
