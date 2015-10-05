@@ -25,6 +25,7 @@ type Player struct {
 	id                string
 	level             int
 	xp                int
+	skillPoints       int
 	shooting          bool
 	infamy            int
 	health            float64
@@ -59,13 +60,13 @@ type Point struct {
 
 type Npc struct {
 	rect         Rectangle
-	origin Vector2
+	origin       Vector2
 	id           int
 	npcType      int
 	health       float64
 	damage       int
 	rotation     int
-	bulletRange int
+	bulletRange  int
 	shotTime     int
 	shotCooldown int
 	shotType     string
@@ -81,11 +82,11 @@ type Rectangle struct {
 }
 
 type Bullet struct {
-	shooter interface{}
-	damage  int
-	ID      int
-	origin  Vector2
-	rect    Rectangle
+	shooter     interface{}
+	damage      int
+	ID          int
+	origin      Vector2
+	rect        Rectangle
 	bulletRange float64
 }
 
@@ -107,6 +108,7 @@ type Update struct {
 	ID          string
 	Level       int
 	XP          int
+	SkillPoints int
 	Infamy      int
 	Shooting    bool
 	FireRate    int
@@ -230,10 +232,11 @@ var NPC_2_MIN_DIST float64 = METEOR_MIN_DIST - 20
 var NPC_2_MAX_DIST float64 = NPC_2_MIN_DIST - 25
 var NPC_2_MAX_AMMOUNT int = 150
 var NPC_2_MAX_MOVE_DIST float64 = 0.1
-var NPC_2_SIGHT float64 = 15
+var NPC_2_SIGHT float64 = 25
+
 //leveling
-var BASE_XP = 100
-var LEVEL_XP_FACTOR = 4
+var BASE_XP = 50
+var LEVEL_XP_FACTOR = 1
 
 func main() {
 	rand.Seed(time.Now().Unix())
@@ -266,7 +269,7 @@ func FloatToString(input_num float64) string {
 }
 
 func randFloatInRange(min float64, max float64) float64 {
-	return ( rand.Float64() * ( max - min ) ) + min
+	return (rand.Float64() * (max - min)) + min
 }
 
 func spawnNPCs() {
@@ -287,7 +290,7 @@ func spawnNPCs() {
 	npcs = append(npcs, newNPC)
 }
 
-func spawnNPC(npc_type int, damage int, shotTime int, shotCooldown int, health float64, bullet_range int, min_dist float64, max_dist float64 ) {
+func spawnNPC(npc_type int, damage int, shotTime int, shotCooldown int, health float64, bullet_range int, min_dist float64, max_dist float64) {
 	newNPC := new(Npc)
 	newNPC.id = rand.Intn(10000)
 	newNPC.npcType = npc_type
@@ -300,7 +303,7 @@ func spawnNPC(npc_type int, damage int, shotTime int, shotCooldown int, health f
 	var randRad = randAngle * math.Pi / 180
 	var randRadius = randFloatInRange(min_dist, max_dist)
 	var x = math.Cos(randRad) * randRadius
-	var y = math.Sin(randRad) * randRadius//( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
+	var y = math.Sin(randRad) * randRadius //( rand.Float64() * ( METEOR_MAX_DIST - METEOR_MIN_DIST ) ) + METEOR_MIN_DIST
 	newNPC.rect = createRect(x, y, 3, 3)
 	newNPC.origin = Vector2{x: newNPC.rect.x, y: newNPC.rect.y}
 	npcs = append(npcs, newNPC)
@@ -312,42 +315,48 @@ func moveEnemyRandomly(rect *Rectangle, targetPos Vector2) {
 	var d float64
 
 	var targetAngleInRads = math.Atan2(deltaY, deltaX)
-	if (targetAngleInRads < 0) {
-		targetAngleInRads += 2*math.Pi
+	if targetAngleInRads < 0 {
+		targetAngleInRads += 2 * math.Pi
 	}
 	var targetAngleInDegrees float64 = targetAngleInRads * 180 / math.Pi
 
 	var randAngle float64 = float64(rand.Intn(360))
 
-	if (deltaX == 0) {
+	if deltaX == 0 {
 		d = 0
 	} else {
 		d = randAngle - targetAngleInDegrees
-		if (d < -180){ d += 360};
-        if (d > 180){ d -= 360};
-        d = math.Abs(d)
-	} 
+		if d < -180 {
+			d += 360
+		}
+		if d > 180 {
+			d -= 360
+		}
+		d = math.Abs(d)
+	}
 
 	var multiplier = (-1 * (d - 180)) / 180
 
+	//fmt.Println("%vTarget Angle: ", targetAngleInDegrees, " | randAngle: ", randAngle, " | angleDistance: ", d, " | mult: ", multiplier)
+
 	// fmt.Println("Move Dist: %v; Target Angle: %v; Rand Angle: %v",
-	// 			d, 
+	// 			d,
 	// 			multiplier,
 	// 			targetAngleInDegrees,
 	// 			randAngle)
 
 	var rectCopy = *rect
-	rectCopy.x = rectCopy.x + NPC_2_MAX_MOVE_DIST * multiplier * math.Cos(randAngle);
-	rectCopy.y = rectCopy.y + NPC_2_MAX_MOVE_DIST * multiplier * math.Sin(randAngle);
+	rectCopy.x = rectCopy.x + (NPC_2_MAX_MOVE_DIST * multiplier * math.Cos(randAngle))
+	rectCopy.y = rectCopy.y + (NPC_2_MAX_MOVE_DIST * multiplier * math.Sin(randAngle))
 	*rect = rectCopy
 }
 
 func isAPlayerNear(pos Vector2, sightRange float64) bool {
-	var value = false;
+	var value = false
 	for _, player := range players {
-		var dist = math.Sqrt( math.Pow(player.rect.x - pos.x, 2) + math.Pow(player.rect.y - pos.y, 2) )
-		if (dist <= sightRange) {
-			value = true;
+		var dist = math.Sqrt(math.Pow(player.rect.x-pos.x, 2) + math.Pow(player.rect.y-pos.y, 2))
+		if dist <= sightRange {
+			value = true
 			break
 		}
 	}
@@ -367,7 +376,7 @@ func updateNPCs() {
 			} else if npc.npcType == 2 {
 				npc_2_count += 1
 				//if (npc_2_count == 1) {
-					moveEnemyRandomly(&npc.rect, npc.origin)
+				moveEnemyRandomly(&npc.rect, npc.origin)
 				//}
 				// npc.rect.x = npc.rect.x + rand.Float64() - 0.5
 				// npc.rect.y = npc.rect.y + rand.Float64() - 0.5
@@ -434,6 +443,7 @@ func updatePlayerStats() {
 					var diff = player.xp - currentXPCapRounded
 					player.level += 1
 					player.xp = diff
+					player.skillPoints += 1
 				}
 
 				//update health stat
@@ -592,6 +602,7 @@ func moveBullets() {
 								var shooter = *bulletShooterP
 								shooter.scraps += 100
 								shooter.xp += 100
+								*bulletShooterP = shooter
 							}
 						}
 					}
@@ -618,6 +629,8 @@ func moveBullets() {
 						//player.Health = player.Health - 10
 
 						if npc.health <= 0 {
+							println("remove npc")
+
 							removeNpcFromList(npc)
 
 							//only update bullet shooters shit if it was shot by a player
@@ -626,6 +639,7 @@ func moveBullets() {
 								//update shooter's scraps
 								shooter.scraps += (int32(rand.Intn(51)) + 50)
 								shooter.xp += 20
+								*bulletShooterP = shooter
 
 								//drop item randomly
 								dropItemRandomly(bulletShooterP, 75)
@@ -974,54 +988,54 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 		} else if res.Action == "shoot" {
 			player.health = player.health
 		} else if res.Action == "upgradeHealthCap" {
-			if player.scraps >= 100 && player.healthCap < HEALTHCAP_CAP {
+			if player.skillPoints >= 1 && player.healthCap < HEALTHCAP_CAP {
 				player.healthCap += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeHealthRegen" {
-			if player.scraps >= 100 && player.healthRegen < HEALTH_REGEN_CAP {
+			if player.skillPoints >= 1 && player.healthRegen < HEALTH_REGEN_CAP {
 				player.healthRegen += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeSpeed" {
-			if player.scraps >= 100 && player.speed < MOVE_SPEED_CAP {
+			if player.skillPoints >= 1 && player.speed < MOVE_SPEED_CAP {
 				player.speed += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeShieldCap" {
-			if player.scraps >= 100 && player.shieldCap < SHIELD_CAP {
+			if player.skillPoints >= 1 && player.shieldCap < SHIELD_CAP {
 				player.shieldCap += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeShieldRegen" {
-			if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
+			if player.skillPoints >= 1 && player.shieldRegen < SHIELD_REGEN_CAP {
 				player.shieldRegen += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeEnergyCap" {
 			if player.scraps >= 100 && player.energyCap < ENERGY_CAP_CAP {
 				player.energyCap += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeEnergyRegen" {
-			if player.scraps >= 100 && player.energyRegen < ENERGY_REGEN_CAP {
+			if player.skillPoints >= 1 && player.energyRegen < ENERGY_REGEN_CAP {
 				player.energyRegen += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeShieldRegen" {
-			if player.scraps >= 100 && player.shieldRegen < SHIELD_REGEN_CAP {
+			if player.skillPoints >= 1 && player.shieldRegen < SHIELD_REGEN_CAP {
 				player.shieldRegen += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeDamage" {
-			if player.scraps >= 100 && player.damage < DAMAGE_CAP {
+			if player.skillPoints >= 1 && player.damage < DAMAGE_CAP {
 				player.damage += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "upgradeFireRate" {
-			if player.scraps >= 100 && player.fireRate < FIRE_RATE_CAP {
+			if player.skillPoints >= 1 && player.fireRate < FIRE_RATE_CAP {
 				player.fireRate += 1
-				player.scraps -= 100
+				player.skillPoints -= 1
 			}
 		} else if res.Action == "jump" {
 			if player.scraps >= 200 {
@@ -1172,6 +1186,7 @@ func sendData() {
 					ID:                  player.id,
 					Level:               player.level,
 					XP:                  player.xp,
+					SkillPoints:         player.skillPoints,
 					Infamy:              player.infamy,
 					FireRate:            player.fireRate,
 					Health:              player.health,
