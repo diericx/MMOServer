@@ -310,47 +310,56 @@ func spawnNPC(npc_type int, damage int, shotTime int, shotCooldown int, health f
 }
 
 func moveEnemyRandomly(rect *Rectangle, targetPos Vector2) {
-	var deltaY = rect.y - targetPos.y
-	var deltaX = rect.x - targetPos.x
-	var d float64
+	// var deltaY = rect.y - targetPos.y
+	// var deltaX = rect.x - targetPos.x
+	// var d float64
 
-	var targetAngleInRads = math.Atan2(deltaY, deltaX)
-	if targetAngleInRads < 0 {
-		targetAngleInRads += 2 * math.Pi
-	}
-	var targetAngleInDegrees float64 = targetAngleInRads * 180 / math.Pi
+	// var targetAngleInRads = math.Atan2(deltaY, deltaX)
+	// if targetAngleInRads < 0 {
+	// 	targetAngleInRads += 2 * math.Pi
+	// }
+	// var targetAngleInDegrees float64 = targetAngleInRads * 180 / math.Pi
 
-	var randAngle float64 = float64(rand.Intn(360))
+	// var randAngle float64 = float64(rand.Intn(360))
 
-	if deltaX == 0 {
-		d = 0
-	} else {
-		d = randAngle - targetAngleInDegrees
-		if d < -180 {
-			d += 360
-		}
-		if d > 180 {
-			d -= 360
-		}
-		d = math.Abs(d)
-	}
+	// if deltaX == 0 {
+	// 	d = 0
+	// } else {
+	// 	d = randAngle - targetAngleInDegrees
+	// 	if d < -180 {
+	// 		d += 360
+	// 	}
+	// 	if d > 180 {
+	// 		d -= 360
+	// 	}
+	// 	d = math.Abs(d)
+	// }
 
-	var multiplier = (-1 * (d - 180)) / 180
+	// var multiplier = (-1 * (d - 180)) / 180
 
-	//fmt.Println("%vTarget Angle: ", targetAngleInDegrees, " | randAngle: ", randAngle, " | angleDistance: ", d, " | mult: ", multiplier)
+	// //fmt.Println("%vTarget Angle: ", targetAngleInDegrees, " | randAngle: ", randAngle, " | angleDistance: ", d, " | mult: ", multiplier)
 
-	// fmt.Println("Move Dist: %v; Target Angle: %v; Rand Angle: %v",
-	// 			d,
-	// 			multiplier,
-	// 			targetAngleInDegrees,
-	// 			randAngle)
+	// var rectCopy = *rect
+	// rectCopy.x = rectCopy.x + (NPC_2_MAX_MOVE_DIST * multiplier * math.Cos(randAngle))
+	// rectCopy.y = rectCopy.y + (NPC_2_MAX_MOVE_DIST * multiplier * math.Sin(randAngle))
+	// *rect = rectCopy
 
 	var rectCopy = *rect
-	rectCopy.x = rectCopy.x + (NPC_2_MAX_MOVE_DIST * multiplier * math.Cos(randAngle))
-	rectCopy.y = rectCopy.y + (NPC_2_MAX_MOVE_DIST * multiplier * math.Sin(randAngle))
+	if rectCopy.x == targetPos.x && rectCopy.y == targetPos.y {
+		//move randomly if already on position
+		var randMultiplierX = rand.Float64() * 8
+		var randMultiplierY = rand.Float64() * 8
+		rectCopy.x = targetPos.x + NPC_2_MAX_MOVE_DIST*randMultiplierX
+		rectCopy.y = targetPos.y + NPC_2_MAX_MOVE_DIST*randMultiplierY
+	} else {
+		rectCopy.x = targetPos.x
+		rectCopy.y = targetPos.y
+	}
 	*rect = rectCopy
 }
 
+//Check if a player is near a location//
+//!!VERY EXPENSIVE!!//
 func isAPlayerNear(pos Vector2, sightRange float64) bool {
 	var value = false
 	for _, player := range players {
@@ -370,6 +379,8 @@ func updateNPCs() {
 		var npc_2_count = 0
 
 		for _, npc := range npcs {
+
+			//MOVE NPCs
 			if npc.npcType == 1 {
 				//count amount of meteors
 				meteor_count += 1
@@ -930,32 +941,6 @@ func getDataFromPlayer(player *Player, buf []byte, n int) {
 			player.yMovement = res.Y
 
 			player.rect.rotation = res.Rotation
-
-			//print("%v", player.xMovement)
-
-			// if (player.gear.cockpit == -1) {
-			//     var link = baseAddr + "get_users_item_set?user_id=" + player.ID
-			//     resp, err := http.Get(link)
-			//     if err != nil {
-
-			//     } else {
-			//         // fmt.Printf("%v", resp)
-			//         contents, err := ioutil.ReadAll(resp.Body)
-			//         if err == nil {
-			//             // fmt.Printf("%s\n", string(contents))
-			//             dec2 := json.NewDecoder(strings.NewReader(string(contents)))
-			//             var res = &Gear{}
-			//             dec2.Decode(&res)
-
-			//             player.gear.cockpit = res.Cockpit
-			//             player.gear.lasers = res.Lasers
-			//             player.gear.wings = res.Wings
-			//             player.gear.jets = res.Jets
-			//         } else {
-
-			//         }
-			//     }
-			// }
 
 			//test := string(buf[0:n])
 		} else if res.Action == "equip" {
