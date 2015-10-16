@@ -19,38 +19,40 @@ import (
 )
 
 type Player struct {
-	rect              Rectangle
-	addr              net.UDPAddr
-	lastUpdate        time.Time
-	id                string
-	level             int
-	xp                int
-	skillPoints       int
-	shooting          bool
-	infamy            int
-	health            float64
-	healthCap         int
-	healthRegen       int
-	energy            float64
-	energyCap         int
-	energyRegen       int
-	shield            float64
-	shieldCap         int
-	shieldRegen       int
-	fireRate          int
-	fireRateCooldown  int
-	damage            int
-	speed             int
-	weaponCooldownCap float64
-	weaponCooldown    float64
-	weaponBulletCount int
-	scraps            int32
-	x                 float64
-	y                 float64
-	xMovement         float64
-	yMovement         float64
-	gear              []string
-	inventory         []string
+	rect               Rectangle
+	addr               net.UDPAddr
+	lastUpdate         time.Time
+	id                 string
+	level              int
+	xp                 int
+	skillPoints        int
+	shooting           bool
+	infamy             int
+	health             float64
+	healthCap          int
+	healthRegen        int
+	energy             float64
+	energyCap          int
+	energyRegen        int
+	shield             float64
+	shieldCap          int
+	shieldRegen        int
+	fireRate           int
+	fireRateCooldown   int
+	damage             int
+	speed              int
+	weaponCooldownCap  float64
+	weaponCooldown     float64
+	weaponBulletCount  int
+	scraps             int32
+	targetNPC          Npc
+	targetRotation_NPC float64
+	x                  float64
+	y                  float64
+	xMovement          float64
+	yMovement          float64
+	gear               []string
+	inventory          []string
 }
 
 type Point struct {
@@ -102,34 +104,35 @@ type Message struct {
 
 type Update struct {
 	//client player data
-	Action      string
-	Type        string
-	Value       int
-	ID          string
-	Level       int
-	XP          int
-	SkillPoints int
-	Infamy      int
-	Shooting    bool
-	FireRate    int
-	Exp         int
-	Health      float64
-	HealthCap   int
-	HealthRegen int
-	Energy      float64
-	EnergyCap   int
-	EnergyRegen int
-	Shield      float64
-	ShieldCap   int
-	ShieldRegen int
-	Speed       int
-	Damage      int
-	Scraps      int32
-	X           float64 //change to float64
-	Y           float64
-	Rotation    int
-	Gear        []string
-	IsNPC       bool
+	Action             string
+	Type               string
+	Value              int
+	ID                 string
+	Level              int
+	XP                 int
+	SkillPoints        int
+	Infamy             int
+	Shooting           bool
+	FireRate           int
+	Exp                int
+	Health             float64
+	HealthCap          int
+	HealthRegen        int
+	Energy             float64
+	EnergyCap          int
+	EnergyRegen        int
+	Shield             float64
+	ShieldCap          int
+	ShieldRegen        int
+	Speed              int
+	Damage             int
+	Scraps             int32
+	X                  float64 //change to float64
+	Y                  float64
+	Rotation           int
+	Gear               []string
+	IsNPC              bool
+	TargetRotation_NPC float64
 	//inventory data
 	Inventory []string
 	//other player data
@@ -196,7 +199,7 @@ var shouldQuit = false
 
 //CONSTANTS
 var PLAYER_LOAD_DIST float64 = 30
-var ARENA_SIZE float64 = 100
+var ARENA_SIZE float64 = 200
 var HEALTHCAP_CAP int = 10
 var HEALTH_REGEN_CAP int = 10
 var MOVE_SPEED_CAP int = 10
@@ -225,12 +228,12 @@ var NUMBER_OF_WING_ITEMS = 2
 var NUMBER_OF_HULL_ITEMS = 2
 
 var METEOR_MIN_DIST float64 = 75
-var METEOR_MAX_DIST float64 = 110
-var METEOR_MAX_AMMOUNT int = 150
+var METEOR_MAX_DIST float64 = 210
+var METEOR_MAX_AMMOUNT int = 300
 
-var NPC_2_MIN_DIST float64 = METEOR_MIN_DIST - 20
-var NPC_2_MAX_DIST float64 = NPC_2_MIN_DIST - 25
-var NPC_2_MAX_AMMOUNT int = 150
+var NPC_2_MIN_DIST float64 = 150
+var NPC_2_MAX_DIST float64 = 100
+var NPC_2_MAX_AMMOUNT int = 25
 var NPC_2_MAX_MOVE_DIST float64 = 0.1
 var NPC_2_SIGHT float64 = 25
 
@@ -372,6 +375,14 @@ func isAPlayerNear(pos Vector2, sightRange float64) bool {
 	return value
 }
 
+//get angle between 2 vectors
+func getAngleBetween2Vectors(p1 Vector2, p2 Vector2) float64 {
+	var deltaY = p2.y - p1.y
+	var deltaX = p2.x - p1.x
+	var angleInDegrees = math.Atan2(deltaY, deltaX) * 180 / math.Pi
+	return angleInDegrees
+}
+
 func updateNPCs() {
 	for {
 		//count of meteors
@@ -428,7 +439,7 @@ func updateNPCs() {
 		if npc_2_count < NPC_2_MAX_AMMOUNT {
 			for i := 0; i < (NPC_2_MAX_AMMOUNT - npc_2_count); i++ {
 				//spawnNPC(2, 2, 1000, 1000, 50, 15, METEOR_MIN_DIST, METEOR_MAX_DIST)
-				spawnNPC(2, 2, 1000, 1000, 50, 15, METEOR_MIN_DIST, METEOR_MAX_DIST)
+				spawnNPC(2, 2, 1000, 1000, 50, 15, NPC_2_MIN_DIST, NPC_2_MAX_DIST)
 			}
 		}
 
@@ -502,6 +513,12 @@ func updatePlayerStats() {
 				} else {
 					player.fireRateCooldown = 0
 				}
+
+				//update player target rotation
+				//if player.targetNPC != nil {
+				var rotation = getAngleBetween2Vectors(Vector2{x: player.rect.x, y: player.rect.y}, player.targetNPC.origin)
+				player.targetRotation_NPC = rotation
+				//}
 			}
 		}
 		time.Sleep((time.Second / time.Duration(1000)))
@@ -760,6 +777,9 @@ func instantiatePlayer(addr *net.UDPAddr) *Player {
 	newPlayer.weaponCooldownCap = 0.5
 	newPlayer.weaponCooldown = 0
 	newPlayer.weaponBulletCount = 1
+
+	newPlayer.targetNPC = *npcs[0]
+	newPlayer.targetRotation_NPC = 0
 
 	newPlayer.rect = createRect(0, 0, 3, 3)
 
@@ -1192,6 +1212,7 @@ func sendData() {
 					Gear:                player.gear,
 					Inventory:           player.inventory,
 					IsNPC:               false,
+					TargetRotation_NPC:  player.targetRotation_NPC,
 					OtherPlayerIDs:      otherPlayerIDs,
 					OtherPlayerXs:       otherPlayerXs,
 					OtherPlayerYs:       otherPlayerYs,
