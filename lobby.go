@@ -66,6 +66,7 @@ type Npc struct {
 	id           int
 	npcType      int
 	health       float64
+	alive        bool
 	damage       int
 	rotation     int
 	bulletRange  int
@@ -132,7 +133,8 @@ type Update struct {
 	Rotation           int
 	Gear               []string
 	IsNPC              bool
-	TargetRotation_NPC float64
+	TargetNPCX         float64
+	TargetNPCY         float64
 	//inventory data
 	Inventory []string
 	//other player data
@@ -519,6 +521,10 @@ func updatePlayerStats() {
 				var rotation = getAngleBetween2Vectors(Vector2{x: player.rect.x, y: player.rect.y}, player.targetNPC.origin)
 				player.targetRotation_NPC = rotation
 				//}
+
+				if (player.targetNPC.alive == false) {
+					player.targetNPC = *npcs[0]
+				}
 			}
 		}
 		time.Sleep((time.Second / time.Duration(1000)))
@@ -645,9 +651,7 @@ func moveBullets() {
 					if compareRects(npc.rect, bullet.rect) == true && bulletShooterNPC == nil {
 
 						//Remove bullet once it hits a player
-						//bulletsToRemove = append(bulletsToRemove, bullet)
 						addBulletToRemoveList(bullet)
-						//removeBulletFromList(bullet)
 
 						//calculate damage dealing
 						var damage = BASE_DAMAGE_VALUE + (bullet.damage * 5)
@@ -658,7 +662,7 @@ func moveBullets() {
 
 						if npc.health <= 0 {
 							println("remove npc")
-
+							//remove npc
 							removeNpcFromList(npc)
 
 							//only update bullet shooters shit if it was shot by a player
@@ -843,6 +847,9 @@ func removeNpcFromList(n *Npc) {
 	if foundIndex != -1 {
 		npcs = append(npcs[:foundIndex], npcs[foundIndex+1:]...)
 	}
+	var copy = *n
+	copy.alive = false
+	*n = copy
 }
 
 func isItemInPlayerInventory(inv []string, itemID string) bool {
@@ -1212,7 +1219,8 @@ func sendData() {
 					Gear:                player.gear,
 					Inventory:           player.inventory,
 					IsNPC:               false,
-					TargetRotation_NPC:  player.targetRotation_NPC,
+					TargetNPCX:          player.targetNPC.rect.x,
+					TargetNPCY:          player.targetNPC.rect.y,
 					OtherPlayerIDs:      otherPlayerIDs,
 					OtherPlayerXs:       otherPlayerXs,
 					OtherPlayerYs:       otherPlayerYs,
