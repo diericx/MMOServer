@@ -46,7 +46,7 @@ type Player struct {
 	weaponBulletCount  int
 	scraps             int32
 	targetNPC          Npc
-	targetRotation_NPC float64
+	targetNPC_rotation float64
 	x                  float64
 	y                  float64
 	xMovement          float64
@@ -105,36 +105,37 @@ type Message struct {
 
 type Update struct {
 	//client player data
-	Action             string
-	Type               string
-	Value              int
-	ID                 string
-	Level              int
-	XP                 int
-	SkillPoints        int
-	Infamy             int
-	Shooting           bool
-	FireRate           int
-	Exp                int
-	Health             float64
-	HealthCap          int
-	HealthRegen        int
-	Energy             float64
-	EnergyCap          int
-	EnergyRegen        int
-	Shield             float64
-	ShieldCap          int
-	ShieldRegen        int
-	Speed              int
-	Damage             int
-	Scraps             int32
-	X                  float64 //change to float64
-	Y                  float64
-	Rotation           int
-	Gear               []string
-	IsNPC              bool
-	TargetNPCX         float64
-	TargetNPCY         float64
+	Action      string
+	Type        string
+	Value       int
+	ID          string
+	Level       int
+	XP          int
+	SkillPoints int
+	Infamy      int
+	Shooting    bool
+	FireRate    int
+	Exp         int
+	Health      float64
+	HealthCap   int
+	HealthRegen int
+	Energy      float64
+	EnergyCap   int
+	EnergyRegen int
+	Shield      float64
+	ShieldCap   int
+	ShieldRegen int
+	Speed       int
+	Damage      int
+	Scraps      int32
+	X           float64 //change to float64
+	Y           float64
+	Rotation    int
+	Gear        []string
+	IsNPC       bool
+	//target marker data
+	TargetNPC_rotation      float64
+	TargetPlayers_rotations []float64
 	//inventory data
 	Inventory []string
 	//other player data
@@ -518,11 +519,17 @@ func updatePlayerStats() {
 
 				//update player target rotation
 				//if player.targetNPC != nil {
-				var rotation = getAngleBetween2Vectors(Vector2{x: player.rect.x, y: player.rect.y}, player.targetNPC.origin)
-				player.targetRotation_NPC = rotation
+				if (distance(Vector2{x: player.rect.x, y: player.rect.y}, player.targetNPC.origin) >= 20) {
+					var rotation = getAngleBetween2Vectors(Vector2{x: player.rect.x, y: player.rect.y}, player.targetNPC.origin)
+					player.targetNPC_rotation = rotation
+				} else {
+					player.targetNPC_rotation = -1
+				}
 				//}
 
-				if (player.targetNPC.alive == false) {
+				//if the npc is still alive
+				if player.targetNPC.alive == false {
+					//if the npc is far enough away
 					player.targetNPC = *npcs[0]
 				}
 			}
@@ -783,7 +790,7 @@ func instantiatePlayer(addr *net.UDPAddr) *Player {
 	newPlayer.weaponBulletCount = 1
 
 	newPlayer.targetNPC = *npcs[0]
-	newPlayer.targetRotation_NPC = 0
+	newPlayer.targetNPC_rotation = 0
 
 	newPlayer.rect = createRect(0, 0, 3, 3)
 
@@ -1132,6 +1139,8 @@ func sendData() {
 			npcYs := make([]float64, 0)
 			npcHlths := make([]float64, 0)
 
+			targetPlayers_rotations := make([]float64, 0)
+
 			if player.id != "" {
 
 				//put all bullets into one array that are CLOSE TO THE PLAYER
@@ -1152,8 +1161,9 @@ func sendData() {
 				//WARNING: MAY CAUSE LAG
 				for _, otherPlayer := range players {
 					if player.id == "1" && player != otherPlayer {
-						//fmt.Printf("X: %v, Y: %v\n", otherPlayer.rect.x, otherPlayer.rect.y)
-						//fmt.Printf("%v\n", player.Gear.wings)
+						//add other player's rotations to list
+						var rotation = getAngleBetween2Vectors(Vector2{x: player.rect.x, y: player.rect.y}, Vector2{x: otherPlayer.rect.x, y: otherPlayer.rect.y})
+						targetPlayers_rotations = append(targetPlayers_rotations, rotation)
 					}
 
 					var dist = math.Sqrt(math.Pow(otherPlayer.rect.x-player.rect.x, 2) + math.Pow(otherPlayer.rect.y-player.rect.y, 2))
@@ -1167,6 +1177,7 @@ func sendData() {
 						gearSet := []string{otherPlayer.gear[0], otherPlayer.gear[1], otherPlayer.gear[2], otherPlayer.gear[3]}
 						otherPlayerGearSets = append(otherPlayerGearSets, gearSet)
 					}
+
 				}
 
 				//get all data from NPCs
@@ -1194,48 +1205,48 @@ func sendData() {
 
 				//create update packet
 				res1D := &Update{
-					Action:              "playerUpdate",
-					ID:                  player.id,
-					Level:               player.level,
-					XP:                  player.xp,
-					SkillPoints:         player.skillPoints,
-					Infamy:              player.infamy,
-					FireRate:            player.fireRate,
-					Health:              player.health,
-					HealthCap:           player.healthCap,
-					HealthRegen:         player.healthRegen,
-					Energy:              player.energy,
-					EnergyCap:           player.energyCap,
-					EnergyRegen:         player.energyRegen,
-					Shield:              player.shield,
-					ShieldCap:           player.shieldCap,
-					ShieldRegen:         player.shieldRegen,
-					Speed:               player.speed,
-					Damage:              player.damage,
-					Scraps:              player.scraps,
-					X:                   player.rect.x,
-					Y:                   player.rect.y,
-					Rotation:            player.rect.rotation,
-					Gear:                player.gear,
-					Inventory:           player.inventory,
-					IsNPC:               false,
-					TargetNPCX:          player.targetNPC.rect.x,
-					TargetNPCY:          player.targetNPC.rect.y,
-					OtherPlayerIDs:      otherPlayerIDs,
-					OtherPlayerXs:       otherPlayerXs,
-					OtherPlayerYs:       otherPlayerYs,
-					OtherPlayerRots:     otherPlayerRots,
-					OtherPlayerHlths:    otherPlayerHlths,
-					OtherPlayerGearSets: otherPlayerGearSets,
-					BulletIDs:           bulletIDs,
-					BulletXs:            bulletXs,
-					BulletYs:            bulletYs,
-					BulletRots:          bulletRots,
-					NpcIDs:              npcIDs,
-					NpcTypes:            npcTypes,
-					NpcXs:               npcXs,
-					NpcYs:               npcYs,
-					NpcHlths:            npcHlths,
+					Action:                  "playerUpdate",
+					ID:                      player.id,
+					Level:                   player.level,
+					XP:                      player.xp,
+					SkillPoints:             player.skillPoints,
+					Infamy:                  player.infamy,
+					FireRate:                player.fireRate,
+					Health:                  player.health,
+					HealthCap:               player.healthCap,
+					HealthRegen:             player.healthRegen,
+					Energy:                  player.energy,
+					EnergyCap:               player.energyCap,
+					EnergyRegen:             player.energyRegen,
+					Shield:                  player.shield,
+					ShieldCap:               player.shieldCap,
+					ShieldRegen:             player.shieldRegen,
+					Speed:                   player.speed,
+					Damage:                  player.damage,
+					Scraps:                  player.scraps,
+					X:                       player.rect.x,
+					Y:                       player.rect.y,
+					Rotation:                player.rect.rotation,
+					Gear:                    player.gear,
+					Inventory:               player.inventory,
+					IsNPC:                   false,
+					TargetNPC_rotation:      player.targetNPC_rotation,
+					TargetPlayers_rotations: targetPlayers_rotations,
+					OtherPlayerIDs:          otherPlayerIDs,
+					OtherPlayerXs:           otherPlayerXs,
+					OtherPlayerYs:           otherPlayerYs,
+					OtherPlayerRots:         otherPlayerRots,
+					OtherPlayerHlths:        otherPlayerHlths,
+					OtherPlayerGearSets:     otherPlayerGearSets,
+					BulletIDs:               bulletIDs,
+					BulletXs:                bulletXs,
+					BulletYs:                bulletYs,
+					BulletRots:              bulletRots,
+					NpcIDs:                  npcIDs,
+					NpcTypes:                npcTypes,
+					NpcXs:                   npcXs,
+					NpcYs:                   npcYs,
+					NpcHlths:                npcHlths,
 				}
 
 				var newByteArray []byte
