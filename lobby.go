@@ -197,6 +197,7 @@ var partner = make(chan io.ReadWriteCloser)
 var players []*Player
 var bullets []*Bullet
 var npcs []*Npc
+var m = make(map[string][]interface{})
 
 var shouldQuit = false
 
