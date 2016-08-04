@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"net"
 
 	"github.com/melvinmt/firebase"
 	"github.com/vova616/chipmunk/vect"
@@ -18,12 +19,12 @@ var DEFAULT_PLAYER_SHOOT_TIME float64 = 100
 var DEFAULT_PLAYER_SPEED float64 = 500
 var DEFAULT_PLAYER_MAX_SPEED float64 = 500
 
-func NewPlayer(s Socket, location Vect2, size Vect2) *Entity {
+func NewPlayer(addr *net.UDPAddr, location Vect2, size Vect2) *Entity {
 	newPlayer := NewEntity(nil, location, size)
 	newPlayer.entityType = "Player"
 	newPlayer.body.UserData = newPlayer
 	newPlayer.value = 1
-	newPlayer.socket = s
+	newPlayer.addr = addr
 	newPlayer.targetX = 0
 	newPlayer.targetY = 0
 	newPlayer.speed = DEFAULT_PLAYER_SPEED

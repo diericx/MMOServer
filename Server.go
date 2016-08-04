@@ -3,22 +3,13 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net"
 	"ugorji/go/codec"
-
-	"golang.org/x/net/websocket"
 )
 
 type Server struct {
 	addr string
-}
-
-type Socket struct {
-	io.ReadWriter
-	done   chan bool
-	closed bool
 }
 
 type SendMessage struct {
@@ -83,11 +74,12 @@ type CurrentPlayer struct {
 }
 
 type PlayerDataObject struct {
-	action       string
-	packetObj    ReceiveMessage
-	packetString string
-	socket       Socket
-	player       *Entity
+	action    string
+	packetObj ReceiveMessage
+	buf       []byte
+	n         int
+	addr      *net.UDPAddr
+	player    *Entity
 }
 
 var (
@@ -96,54 +88,25 @@ var (
 	w  io.Writer
 )
 var firebaseUrl = "https://diericx.firebaseIO.com/"
-
-//---
-//SOCKET---
-//---
-func (s Socket) Close() error {
-	s.done <- true
-
-	s.closed = true
-
-	return nil
-}
-
-func socketHandler(ws *websocket.Conn) {
-	println("Got connection!")
-	s := Socket{ws, make(chan bool), false}
-	//add the new player to the data stream so it will be created
-	serverInput <- PlayerDataObject{action: "newPlayer", socket: s}
-
-	<-s.done
-}
+var serverConn *net.UDPConn
+var BUFF_SIZE = 1024
 
 //---
 //-----
 //----
 
-func GetData(p *Entity) {
-	for !p.socket.closed {
-		//serialize the packet
-		buf := make([]byte, 500)
-		n, err := p.socket.Read(buf)
-		if err != nil {
-			println("Player <", p.username, "> disconnected")
-			p.socket.Close()
-			p.value = 0
-			//p.removeSelf()
-
-			return
-		}
-
-		var msg = ReceiveMessage{}
-		//decode data
-		dec := codec.NewDecoder(r, &mh)
-		dec = codec.NewDecoderBytes(buf[0:n], &mh)
-		err = dec.Decode(&msg)
-
-		//send the data to the stream to be used later
-		serverInput <- PlayerDataObject{action: "updatePlayer", player: p, packetObj: msg}
+func GetData(p *Entity, buf []byte, n int) {
+	var msg = ReceiveMessage{}
+	//decode data
+	dec := codec.NewDecoder(r, &mh)
+	dec = codec.NewDecoderBytes(buf[0:n], &mh)
+	err := dec.Decode(&msg)
+	if err != nil {
+		println(err)
 	}
+
+	//send the data to the stream to be used later
+	serverInput <- PlayerDataObject{action: "updatePlayer", player: p, packetObj: msg}
 }
 
 func NewServer(addr string) *Server {
@@ -153,27 +116,55 @@ func NewServer(addr string) *Server {
 }
 
 func (s Server) listenForPlayers() {
-	println("waiting for connection...")
-	//http.Handle("/", websocket.Handler(socketHandler))
-	//http.ListenAndServe(s.addr, nil) //192.168.2.36
-	l, err := net.Listen("tcp", s.addr)
 
+	ServerAddr, err := net.ResolveUDPAddr("udp", s.addr)
 	if err != nil {
-		log.Fatal(err)
+		println(err)
 	}
+
+	serverConn, err = net.ListenUDP("udp", ServerAddr)
+	if err != nil {
+		println(err)
+	}
+
+	defer serverConn.Close()
+
+	buf := make([]byte, BUFF_SIZE)
 
 	for {
-		c, err := l.Accept()
-		if err != nil {
-			log.Fatal(err)
-		}
-		println("Got connection!")
-		s := Socket{c, make(chan bool), false}
-		//add the new player to the data stream so it will be created
-		serverInput <- PlayerDataObject{action: "newPlayer", socket: s}
 
-		<-s.done
+		n, addr, err := serverConn.ReadFromUDP(buf)
+		if err != nil {
+			fmt.Println("Error: ", err)
+		}
+
+		serverInput <- PlayerDataObject{action: "updatePlayer", addr: addr, buf: buf, n: n}
+
+		fmt.Println("Received ", string(buf[0:n]), " from ", addr)
+
 	}
+
+	// println("waiting for connection...")
+	// //http.Handle("/", websocket.Handler(socketHandler))
+	// //http.ListenAndServe(s.addr, nil) //192.168.2.36
+	// l, err := net.Listen("tcp", s.addr)
+	//
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	//
+	// for {
+	// 	c, err := l.Accept()
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	println("Got connection!")
+	// 	s := Socket{c, make(chan bool), false}
+	// 	//add the new player to the data stream so it will be created
+	// 	serverInput <- PlayerDataObject{action: "newPlayer", socket: s}
+	//
+	// 	<-s.done
+	// }
 }
 
 //---Process Data---//
@@ -186,8 +177,8 @@ func processServerInput() {
 		var serverInputObj = <-serverInput
 		if serverInputObj.action == "newPlayer" {
 			println("New Player...")
-			var p = NewPlayer(serverInputObj.socket, Vect2{x: 0, y: 0}, Vect2{x: 40, y: 40})
-			go GetData(p)
+			var p = NewPlayer(serverInputObj.addr, Vect2{x: 0, y: 0}, Vect2{x: 40, y: 40})
+			go GetData(p, serverInputObj.buf, serverInputObj.n)
 		} else if serverInputObj.action == "updatePlayer" {
 			var p = serverInputObj.player
 			var msg = serverInputObj.packetObj
@@ -347,7 +338,7 @@ func processServerOutput() {
 
 		playerDataObj.player = p
 		playerDataObj.action = "sendData"
-		playerDataObj.packetString = string(newByteArray)
+		playerDataObj.buf = newByteArray
 		serverOutput <- playerDataObj
 	}
 }
@@ -361,7 +352,14 @@ func sendServerOutput() {
 	for len(serverOutput) > 0 {
 		var serverOutputObj = <-serverOutput
 		if serverOutputObj.action == "sendData" {
-			fmt.Fprint(serverOutputObj.player.socket, string(serverOutputObj.packetString))
+			sendMessage(serverOutputObj.buf, serverConn, serverOutputObj.player.addr)
 		}
+	}
+}
+
+func sendMessage(msg []byte, conn *net.UDPConn, addr *net.UDPAddr) {
+	_, err := conn.WriteToUDP(msg, addr)
+	if err != nil {
+		fmt.Printf("Couldn't send response %v", err)
 	}
 }

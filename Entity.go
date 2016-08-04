@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"net"
 	"time"
 
 	"github.com/satori/go.uuid"
@@ -34,7 +35,7 @@ type Entity struct {
 	//body
 	body Body
 	//Player Server Data
-	socket  Socket
+	addr    *net.UDPAddr
 	targetX int
 	targetY int
 	//Player Data
