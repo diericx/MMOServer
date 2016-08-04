@@ -1,0 +1,38 @@
+
+
+
+
+state -> step -> state'
+
+state -> input -> step -> state'
+
+
+state -> input -> step -> resolve -> state'
+           ^                           |
+           |                          \_/
+        receive                      send
+
+state - state' = deltaState
+
+
+
+
+inputBuffer <- packet
+
+main
+{
+  applyInput
+  updatePhysics
+  updateEntities
+  sendAll
+}
+
+
+outputBuffer <- packet
+
+data := <- outputBuffer
+sendTo(data.IP, data.packet)
+
+for(i = 0; i < N; i++) {
+  go pushdata();
+}

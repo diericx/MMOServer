@@ -5,6 +5,9 @@
   "H2":{
     "healthCap":10
   },
+  "L1":{
+    "range":10
+  },
   "W1":{
     "speed":5
   },
