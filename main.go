@@ -1,11 +1,8 @@
 package main
 
-import (
-	"time"
+import "time"
 
-	"github.com/pkg/profile"
-	//"github.com/vova616/chipmunk/vect"
-)
+//"github.com/vova616/chipmunk/vect"
 
 // var alive = true
 //
@@ -17,9 +14,9 @@ var serverOutput = make(chan PlayerDataObject, 1000)
 
 func main() {
 
-	defer profile.Start(profile.CPUProfile).Stop()
+	//defer profile.Start(profile.CPUProfile).Stop()
 
-	var server = NewServer("192.168.0.112:7777") //192.168.2.36
+	var server = NewServer("localhost:7777") //192.168.2.36
 
 	//------Start server ops---------
 	go server.listenForPlayers()

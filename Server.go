@@ -132,7 +132,6 @@ func (s Server) listenForPlayers() {
 	buf := make([]byte, BUFF_SIZE)
 
 	for {
-
 		n, addr, err := serverConn.ReadFromUDP(buf)
 		if err != nil {
 			fmt.Println("Error: ", err)
@@ -140,7 +139,7 @@ func (s Server) listenForPlayers() {
 
 		serverInput <- PlayerDataObject{action: "updatePlayer", addr: addr, buf: buf, n: n}
 
-		fmt.Println("Received ", string(buf[0:n]), " from ", addr)
+		fmt.Println("Received: ", string(buf[0:n]), " from ", addr.String())
 
 	}
 
