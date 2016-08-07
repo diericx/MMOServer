@@ -1,1 +1,1 @@
-go run main.go Map.go GameObject.go Entity.go Player.go Server.go HitDetection.go
+go run main.go Entity.go Player.go Server.go
