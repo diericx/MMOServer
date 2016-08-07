@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 	"ugorji/go/codec"
@@ -48,7 +49,7 @@ type ServerActionObj struct {
 	entity           *Entity
 }
 
-var LISTEN_ADDRESS = "localhost:7777"
+var LISTEN_ADDRESS = "192.168.0.112:7777"
 var BUF_SIZE = 2048
 
 //variables for decoding
@@ -109,8 +110,25 @@ func processServerInput() {
 		var player = serverInputObj.entity
 
 		if packet.Action == "update" {
-			player.body.pos.x += float64(packet.X) * 5
-			player.body.pos.y += float64(packet.Y) * 5
+			var movX float64 = 0
+			var movY float64 = 0
+
+			//Edit rotation
+			angleInRad := ((packet.Angle * math.Pi) / 180)
+			angleInRadForward := angleInRad + (math.Pi / 2)
+			angleInRadRight := angleInRad
+
+			movX += math.Cos(angleInRadForward) * float64(packet.Y)
+			movY += math.Sin(angleInRadForward) * float64(packet.Y)
+
+			movX += math.Cos(angleInRadRight) * float64(packet.X)
+			movY += math.Sin(angleInRadRight) * float64(packet.X)
+
+			//p.moveEntity(Vect2{x: movX * 15, y: movY * 15})
+			player.body.pos.x += movX * 5
+			player.body.pos.y += movY * 5
+
+			player.body.angle = angleInRad
 		}
 	}
 
