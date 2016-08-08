@@ -7,11 +7,17 @@ import (
 
 var players = make(map[string]*Entity)
 
+var PLAYER_SIZE float64 = 100
+
 func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
+	p.body.size = size
+	p.body.pos = pos
 	p.addr = addr
 	p.entityType = "player"
+	//funcs
 	p.onUpdate = p.playerUpdateFunc
+	p.onCollide = p.playerOnCollide
 
 	players[addr.String()] = p
 
@@ -19,12 +25,14 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 }
 
 func (e *Entity) playerShoot() {
-	var b = NewBullet(e.body.pos, e.body.size)
+	var b = NewBullet(e.body.pos, e.body.size, e)
 	b.body.angle = e.body.angle + (math.Pi / 2)
 	b.body.vel = Vect2{x: math.Cos(b.body.angle) * 100, y: math.Sin(b.body.angle) * 100}
 }
 
 func (e *Entity) playerUpdateFunc() {
+	e.detectCollisions()
+
 	if e.stats.shootCoolDown >= 0 {
 		e.stats.shootCoolDown -= 1
 	}
@@ -35,5 +43,12 @@ func (e *Entity) playerUpdateFunc() {
 			e.playerShoot()
 			e.stats.shootCoolDown = e.stats.shootTime
 		}
+	}
+}
+
+func (e *Entity) playerOnCollide(other *Entity) {
+	if other.entityType == "bullet" {
+		println("COLLIDE WITH BULLET", other.value, e.health)
+		e.health -= other.value
 	}
 }

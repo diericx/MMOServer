@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"net"
 
 	"github.com/satori/go.uuid"
@@ -11,38 +12,44 @@ type Vect2 struct {
 	y float64
 }
 
-type Body struct {
-	pos        Vect2
-	size       Vect2
-	vel        Vect2
-	continuous bool
-	angle      float64
-	points     []Vect2
-}
-
 type Stats struct {
 	shootTime     int
 	shootCoolDown int
 }
 
 type Entity struct {
-	id         uuid.UUID
-	entityType string
+	id   uuid.UUID
+	addr *net.UDPAddr
+	//
+	key        int
 	body       Body
-	addr       *net.UDPAddr
-	stats      Stats
+	entityType string
+	origin     *Entity
+	active     bool
+	//
+	stats  Stats
+	health float64
+	value  float64
 	//action variables
 	shooting bool
-	//functions
-	onUpdate func()
-	onShoot  func()
+	//user defined functions
+	onUpdate  func()
+	onCollide func(other *Entity)
+	onShoot   func()
 }
 
 //holding array
 var entities = make(map[string]*Entity)
 
+//hash map array
+var m = make(map[int]map[string]*Entity)
+
+//hash cell size
+var CELL_SIZE = 2000
+
 func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity := Entity{}
+	newEntity.active = true
 
 	newEntity.id = uuid.NewV4()
 	newEntity.body.pos = pos
@@ -51,6 +58,10 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 		shootTime:     15,
 		shootCoolDown: 15,
 	}
+	newEntity.body.points = make([]Vect2, 4)
+	newEntity.health = 100
+
+	newEntity.addToCell(newEntity.calcKey())
 
 	entities[newEntity.id.String()] = &newEntity
 
@@ -61,13 +72,122 @@ func updateEntities() {
 	for _, p := range players {
 		if p.onUpdate != nil {
 			p.onUpdate()
+			p._onUpdate()
 		}
 	}
 
 	for _, b := range bullets {
 		if b.onUpdate != nil {
 			b.onUpdate()
+			b._onUpdate()
 		}
 	}
 
+}
+
+func (e *Entity) _onUpdate() {
+	e.updateEntityCellData()
+}
+
+func (e *Entity) distanceTo(e2 *Entity) float64 {
+	var loc1 = e.body.Position()
+	var loc2 = e2.body.Position()
+	var deltaX = float64(loc2.x - loc1.x)
+	var deltaY = float64(loc2.y - loc1.y)
+	return math.Sqrt((deltaX * deltaX) + (deltaY * deltaY))
+}
+
+//------HASH MAP--------
+
+//CELL DATA
+func (e *Entity) calcKey() int {
+	var xCell = math.Floor(e.body.Position().x / float64(CELL_SIZE))
+	var yCell = math.Floor(e.body.Position().y / float64(CELL_SIZE))
+	var key int = int(xCell)*1000 + int(yCell)
+	return key
+}
+
+//add to map
+func (e *Entity) addToCell(c int) {
+	//if new map in new Position doesnt exist, create it
+	if m[c] == nil {
+		m[c] = make(map[string]*Entity)
+	}
+
+	m[c][e.id.String()] = e
+}
+
+//if the entity is in a new cell, update it's cell data
+func (e *Entity) updateEntityCellData() {
+	var oldKey = e.key
+	var freshKey = e.calcKey()
+
+	if oldKey == freshKey {
+		return
+	}
+
+	//remove entity from old array
+	if m[oldKey][e.id.String()] != nil {
+		removeFromMap(oldKey, e.id.String())
+	}
+
+	//add to new array (cell)
+	e.addToCell(freshKey)
+
+	e.key = freshKey
+}
+
+//remove entity from map
+func removeFromMap(key int, id string) {
+	//remove entity from old key array
+	delete(m[key], id)
+	//if old key array is empty, remove it
+	if len(m[key]) == 0 {
+		delete(m, key)
+	}
+}
+
+//find nearest player in cell
+func (e *Entity) findNearestPlayer(maxDist float64) *Entity {
+	var nearestPlayer *Entity
+	var minDistance float64 = 9999999
+	var keys = e.getNearbyKeys(2)
+	for _, key := range keys {
+		for _, other := range m[key] {
+			if e != other && other != nil && other.entityType == "Player" {
+				var dist = e.distanceTo(other)
+				if dist < minDistance && dist < maxDist {
+					nearestPlayer = other
+					minDistance = dist
+				}
+			}
+		}
+	}
+	return nearestPlayer
+}
+
+//get keys of cells around current cell
+func (e *Entity) getNearbyKeys(length int) []int {
+
+	var keys = []int{
+		e.key,
+	}
+
+	//top left cell
+	var startCell = e.key - (1000 * length) + (length)
+
+	//loop through horizontally
+	for i := 0; i < (length*2)+1; i++ {
+		//lop vertically and get all cells below this cell
+		for j := 0; j < (length*2)+1; j++ {
+			var newKey = startCell - j
+			if newKey == e.key {
+				continue
+			}
+			keys = append(keys, newKey)
+		}
+		startCell += 1000
+	}
+
+	return keys
 }

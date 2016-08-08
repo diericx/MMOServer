@@ -7,9 +7,9 @@ func main() {
 	var FRAME_WAIT_TIME float64 = 33
 
 	//create some entities
-	// for i := 0; i < 10; i++ {
-	// 	NewEntity(Vect2{x: float64(i * 500), y: 0}, Vect2{x: 10, y: 10})
-	// }
+	for i := 0; i < 10; i++ {
+		//NewEntity(Vect2{x: float64(i * 500), y: 0}, Vect2{x: 10, y: 10})
+	}
 
 	go listenForPackets()
 

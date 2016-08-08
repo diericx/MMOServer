@@ -49,7 +49,7 @@ type ServerActionObj struct {
 	entity           *Entity
 }
 
-var LISTEN_ADDRESS = "10.0.0.22:7777"
+var LISTEN_ADDRESS = "192.168.0.112:7777"
 var BUF_SIZE = 2048
 
 //variables for decoding
@@ -86,7 +86,7 @@ func listenForPackets() {
 		if p == nil {
 			//player hasn't been instantiated yet
 			println("creating player...")
-			NewPlayer(addr, Vect2{x: 0, y: 0}, Vect2{x: 10, y: 10})
+			NewPlayer(addr, Vect2{x: 0, y: 0}, Vect2{x: PLAYER_SIZE, y: PLAYER_SIZE})
 		} else {
 			//player has been instantiated
 			var msg = ReceivePacket{}
@@ -141,14 +141,20 @@ func processServerOutput() {
 
 		var objects = []EntityData{}
 
-		for _, e := range entities {
-			var ed EntityData
-			ed.Id = e.id.String()
-			ed.Type = e.entityType
-			ed.X = e.body.pos.x
-			ed.Y = e.body.pos.y
-			ed.Angle = e.body.angle
-			objects = append(objects, ed)
+		var keys = p.getNearbyKeys(2)
+
+		for _, key := range keys {
+			//println("Key: ", key)
+			for _, e := range m[key] {
+				var ed EntityData
+				ed.Id = e.id.String()
+				ed.Type = e.entityType
+				ed.Health = e.health
+				ed.X = e.body.pos.x
+				ed.Y = e.body.pos.y
+				ed.Angle = e.body.angle
+				objects = append(objects, ed)
+			}
 		}
 
 		packetObj := SendPacket{
