@@ -49,7 +49,7 @@ type ServerActionObj struct {
 	entity           *Entity
 }
 
-var LISTEN_ADDRESS = "localhost:7777"
+var LISTEN_ADDRESS = "10.0.0.22:7777"
 var BUF_SIZE = 2048
 
 //variables for decoding

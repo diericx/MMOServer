@@ -48,8 +48,8 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.body.pos = pos
 	newEntity.body.size = size
 	newEntity.stats = Stats{
-		shootTime:     30,
-		shootCoolDown: 30,
+		shootTime:     15,
+		shootCoolDown: 15,
 	}
 
 	entities[newEntity.id.String()] = &newEntity
