@@ -49,7 +49,7 @@ type ServerActionObj struct {
 	entity           *Entity
 }
 
-var LISTEN_ADDRESS = "192.168.0.112:7777"
+var LISTEN_ADDRESS = "localhost:7777"
 var BUF_SIZE = 2048
 
 //variables for decoding
@@ -129,6 +129,7 @@ func processServerInput() {
 			player.body.pos.y += movY * 5
 
 			player.body.angle = angleInRad
+			player.shooting = serverInputObj.receivePacketObj.Shooting
 		}
 	}
 
@@ -160,6 +161,7 @@ func processServerOutput() {
 		enc := codec.NewEncoder(w, &mh)
 		enc = codec.NewEncoderBytes(&packet, &mh)
 		enc.Encode(packetObj)
+		//println("Packet length: ", len(packet))
 
 		//add packet to queue of things to send
 		var actionObj ServerActionObj
