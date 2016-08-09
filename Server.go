@@ -26,20 +26,16 @@ type SendPacket struct {
 }
 
 type EntityData struct {
-	Id        string
-	Username  string
-	Parent    string //id
-	Child     string //id
-	Height    int
-	Type      string
-	Tag       string
-	Health    float64
-	HealthCap int
-	Power     int
-	MaxPower  int
-	X         float64
-	Y         float64
-	Angle     float64
+	Id         string
+	Username   string
+	Type       string
+	ResourceId string
+	Energy     int
+	Health     float64
+	HealthCap  int
+	X          float64
+	Y          float64
+	Angle      float64
 }
 
 type ServerActionObj struct {
@@ -148,6 +144,8 @@ func processServerOutput() {
 				var ed EntityData
 				ed.Id = e.id.String()
 				ed.Type = e.entityType
+				ed.Energy = int(e.stats.energy)
+				ed.ResourceId = e.resourceId
 				ed.Health = e.Health()
 				ed.X = e.body.pos.x
 				ed.Y = e.body.pos.y

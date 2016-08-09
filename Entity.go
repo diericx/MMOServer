@@ -30,6 +30,7 @@ type Entity struct {
 	entityType string
 	origin     *Entity
 	active     bool
+	resourceId string
 	//
 	stats Stats
 	value float64
@@ -55,6 +56,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.active = true
 
 	newEntity.id = uuid.NewV4()
+	newEntity.resourceId = "default_entity"
 	newEntity.body.pos = pos
 	newEntity.body.size = size
 	newEntity.stats = NewStats()
@@ -73,8 +75,8 @@ func NewStats() Stats {
 		health:        100,
 		shootTime:     15,
 		shootCoolDown: 15,
-		speed:         4,
-		bulletSpeed:   200,
+		speed:         1,
+		bulletSpeed:   1,
 	}
 	return stats
 }
@@ -139,6 +141,16 @@ func (e *Entity) Position() Vect2 {
 
 func (e *Entity) Health() float64 {
 	return e.stats.health
+}
+
+func (s Stats) combine(s2 Stats) Stats {
+	s.bulletSpeed += s2.bulletSpeed
+	s.energy += s2.energy
+	s.health += s2.health
+	s.shootCoolDown += s2.shootCoolDown
+	s.shootTime += s2.shootTime
+	s.speed += s2.speed
+	return s
 }
 
 //------HASH MAP--------

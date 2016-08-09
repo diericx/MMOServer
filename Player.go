@@ -7,7 +7,7 @@ import (
 
 var players = make(map[string]*Entity)
 
-var PLAYER_SIZE float64 = 100
+var PLAYER_SIZE float64 = 1
 
 func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
@@ -48,5 +48,7 @@ func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
 		println("COLLIDE WITH BULLET", other.value, e.Health())
 		e.stats.health -= other.value
+	} else if other.entityType == "item" {
+		e.stats = e.stats.combine(other.stats)
 	}
 }

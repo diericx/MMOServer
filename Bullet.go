@@ -9,6 +9,7 @@ func NewBullet(pos Vect2, size Vect2, origin *Entity) *Entity {
 	b.body.pos = pos
 	b.body.size = size
 	b.entityType = "bullet"
+	b.resourceId = "default_bullet"
 	b.onUpdate = b.bulletUpdateFunc
 	b.onCollide = b.bulletCollideFunc
 	b.value = 10
