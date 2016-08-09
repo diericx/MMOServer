@@ -113,21 +113,20 @@ func processServerInput() {
 			var movX float64 = 0
 			var movY float64 = 0
 
-			//Edit rotation
+			//calculate angles
 			angleInRad := ((packet.Angle * math.Pi) / 180)
 			angleInRadForward := angleInRad + (math.Pi / 2)
 			angleInRadRight := angleInRad
-
+			//calculate velocity
 			movX += math.Cos(angleInRadForward) * float64(packet.Y)
 			movY += math.Sin(angleInRadForward) * float64(packet.Y)
-
 			movX += math.Cos(angleInRadRight) * float64(packet.X)
 			movY += math.Sin(angleInRadRight) * float64(packet.X)
+			//edit body velocity
+			player.body.vel.x = movX * player.stats.speed
+			player.body.vel.y = movY * player.stats.speed
 
-			//p.moveEntity(Vect2{x: movX * 15, y: movY * 15})
-			player.body.pos.x += movX * 5
-			player.body.pos.y += movY * 5
-
+			//set angle and shooting variable
 			player.body.angle = angleInRad
 			player.shooting = serverInputObj.receivePacketObj.Shooting
 		}
@@ -149,7 +148,7 @@ func processServerOutput() {
 				var ed EntityData
 				ed.Id = e.id.String()
 				ed.Type = e.entityType
-				ed.Health = e.health
+				ed.Health = e.Health()
 				ed.X = e.body.pos.x
 				ed.Y = e.body.pos.y
 				ed.Angle = e.body.angle

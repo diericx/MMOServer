@@ -35,7 +35,7 @@ func (e *Entity) isCollidingWith(e2 *Entity) bool {
 	val := compareRects(e.body, e2.body)
 	if val == true {
 		//println((firstValue != v.origin && v != firstValue.origin) && (firstValue.value != 0 && v.value != 0) && (firstValue.health != 0 && v.health != 0))
-		if (e != e2.origin && e2 != e.origin) && (e.active && e2.active) && (e.health != 0 && e2.health != 0) {
+		if (e != e2.origin && e2 != e.origin) && (e.active && e2.active) && (e.Health() != 0 && e2.Health() != 0) {
 			return true
 		}
 	}

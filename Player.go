@@ -11,8 +11,6 @@ var PLAYER_SIZE float64 = 100
 
 func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
-	p.body.size = size
-	p.body.pos = pos
 	p.addr = addr
 	p.entityType = "player"
 	//funcs
@@ -27,7 +25,7 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 func (e *Entity) playerShoot() {
 	var b = NewBullet(e.body.pos, e.body.size, e)
 	b.body.angle = e.body.angle + (math.Pi / 2)
-	b.body.vel = Vect2{x: math.Cos(b.body.angle) * 100, y: math.Sin(b.body.angle) * 100}
+	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats.bulletSpeed, y: math.Sin(b.body.angle) * e.stats.bulletSpeed}
 }
 
 func (e *Entity) playerUpdateFunc() {
@@ -48,7 +46,7 @@ func (e *Entity) playerUpdateFunc() {
 
 func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
-		println("COLLIDE WITH BULLET", other.value, e.health)
-		e.health -= other.value
+		println("COLLIDE WITH BULLET", other.value, e.Health())
+		e.stats.health -= other.value
 	}
 }

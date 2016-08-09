@@ -19,8 +19,8 @@ func NewBullet(pos Vect2, size Vect2, origin *Entity) *Entity {
 }
 
 func (b *Entity) bulletUpdateFunc() {
-	b.body.pos.x += b.body.vel.x
-	b.body.pos.y += b.body.vel.y
+	// b.body.pos.x += b.body.vel.x
+	// b.body.pos.y += b.body.vel.y
 }
 
 func (b *Entity) bulletCollideFunc(other *Entity) {

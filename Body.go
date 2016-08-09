@@ -13,7 +13,3 @@ func (b Body) Size(x float64, y float64) {
 	b.size.x = x
 	b.size.y = x
 }
-
-func (b Body) Position() Vect2 {
-	return b.pos
-}

@@ -13,8 +13,12 @@ type Vect2 struct {
 }
 
 type Stats struct {
+	health        float64
 	shootTime     int
 	shootCoolDown int
+	speed         float64
+	bulletSpeed   float64
+	energy        float64
 }
 
 type Entity struct {
@@ -27,9 +31,8 @@ type Entity struct {
 	origin     *Entity
 	active     bool
 	//
-	stats  Stats
-	health float64
-	value  float64
+	stats Stats
+	value float64
 	//action variables
 	shooting bool
 	//user defined functions
@@ -54,18 +57,26 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.id = uuid.NewV4()
 	newEntity.body.pos = pos
 	newEntity.body.size = size
-	newEntity.stats = Stats{
-		shootTime:     15,
-		shootCoolDown: 15,
-	}
+	newEntity.stats = NewStats()
 	newEntity.body.points = make([]Vect2, 4)
-	newEntity.health = 100
 
 	newEntity.addToCell(newEntity.calcKey())
 
 	entities[newEntity.id.String()] = &newEntity
 
 	return &newEntity
+}
+
+//default stat values
+func NewStats() Stats {
+	stats := Stats{
+		health:        100,
+		shootTime:     15,
+		shootCoolDown: 15,
+		speed:         4,
+		bulletSpeed:   200,
+	}
+	return stats
 }
 
 func updateEntities() {
@@ -87,22 +98,55 @@ func updateEntities() {
 
 func (e *Entity) _onUpdate() {
 	e.updateEntityCellData()
+
+	//p.moveEntity(Vect2{x: movX * 15, y: movY * 15})
+	e.body.pos.x += e.body.vel.x
+	e.body.pos.y += e.body.vel.y
+
+	if e.Health() <= 0 {
+		e.Die()
+	}
 }
 
 func (e *Entity) distanceTo(e2 *Entity) float64 {
-	var loc1 = e.body.Position()
-	var loc2 = e2.body.Position()
+	var loc1 = e.Position()
+	var loc2 = e2.Position()
 	var deltaX = float64(loc2.x - loc1.x)
 	var deltaY = float64(loc2.y - loc1.y)
 	return math.Sqrt((deltaX * deltaX) + (deltaY * deltaY))
+}
+
+func (e *Entity) dropEnergyItem() {
+	NewItem(e.Position(), Vect2{100, 100})
+}
+
+func (e *Entity) Die() {
+	e.dropEnergyItem()
+	e.SetPosition(0, 0)
+	e.stats.health = 100
+}
+
+//------Helper functions with body--------
+
+func (e *Entity) SetPosition(x float64, y float64) {
+	e.body.pos.x = x
+	e.body.pos.y = y
+}
+
+func (e *Entity) Position() Vect2 {
+	return e.body.pos
+}
+
+func (e *Entity) Health() float64 {
+	return e.stats.health
 }
 
 //------HASH MAP--------
 
 //CELL DATA
 func (e *Entity) calcKey() int {
-	var xCell = math.Floor(e.body.Position().x / float64(CELL_SIZE))
-	var yCell = math.Floor(e.body.Position().y / float64(CELL_SIZE))
+	var xCell = math.Floor(e.Position().x / float64(CELL_SIZE))
+	var yCell = math.Floor(e.Position().y / float64(CELL_SIZE))
 	var key int = int(xCell)*1000 + int(yCell)
 	return key
 }
