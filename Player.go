@@ -49,6 +49,7 @@ func (e *Entity) playerOnCollide(other *Entity) {
 		println("COLLIDE WITH BULLET", other.value, e.Health())
 		e.stats.health -= other.value
 	} else if other.entityType == "item" {
+		println("Collide with item!")
 		e.stats = e.stats.combine(other.stats)
 	}
 }

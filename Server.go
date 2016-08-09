@@ -32,7 +32,6 @@ type EntityData struct {
 	ResourceId string
 	Energy     int
 	Health     float64
-	HealthCap  int
 	X          float64
 	Y          float64
 	Angle      float64

@@ -75,7 +75,7 @@ func NewStats() Stats {
 		health:        100,
 		shootTime:     15,
 		shootCoolDown: 15,
-		speed:         1,
+		speed:         0.5,
 		bulletSpeed:   1,
 	}
 	return stats
@@ -119,13 +119,14 @@ func (e *Entity) distanceTo(e2 *Entity) float64 {
 }
 
 func (e *Entity) dropEnergyItem() {
-	NewItem(e.Position(), Vect2{100, 100})
+	NewStatAlterItem(e.Position(), 100)
 }
 
 func (e *Entity) Die() {
 	e.dropEnergyItem()
 	e.SetPosition(0, 0)
 	e.stats.health = 100
+	println("Entity Died!")
 }
 
 //------Helper functions with body--------

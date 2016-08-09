@@ -13,6 +13,7 @@ func (e *Entity) detectCollisions() bool {
 			}
 			otherE.body.updatePoints()
 			if e.isCollidingWith(otherE) {
+				println(e.entityType, (e.onCollide != nil), otherE.entityType, (otherE.onCollide != nil))
 				//call on collide functions
 				if e.onCollide != nil {
 					e.onCollide(otherE)
@@ -35,7 +36,7 @@ func (e *Entity) isCollidingWith(e2 *Entity) bool {
 	val := compareRects(e.body, e2.body)
 	if val == true {
 		//println((firstValue != v.origin && v != firstValue.origin) && (firstValue.value != 0 && v.value != 0) && (firstValue.health != 0 && v.health != 0))
-		if (e != e2.origin && e2 != e.origin) && (e.active && e2.active) && (e.Health() != 0 && e2.Health() != 0) {
+		if (e != e2.origin && e2 != e.origin) && (e.active && e2.active) {
 			return true
 		}
 	}
@@ -64,7 +65,6 @@ func compareRects(a Body, b Body) bool {
 				}
 				if maxA == inf || projected > maxA {
 					maxA = projected
-
 				}
 			}
 

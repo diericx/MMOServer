@@ -11,6 +11,8 @@ func main() {
 		//NewEntity(Vect2{x: float64(i * 500), y: 0}, Vect2{x: 10, y: 10})
 	}
 
+	//NewStatAlterItem(Vect2{x: 0, y: 0}, 100)
+
 	go listenForPackets()
 
 	for {
