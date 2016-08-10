@@ -13,6 +13,7 @@ func NewBullet(pos Vect2, size Vect2, origin *Entity) *Entity {
 	b.onUpdate = b.bulletUpdateFunc
 	b.onCollide = b.bulletCollideFunc
 	b.value = 10
+	b.expireCounter = 30
 
 	bullets[b.id.String()] = b
 

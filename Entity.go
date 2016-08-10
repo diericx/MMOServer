@@ -25,12 +25,13 @@ type Entity struct {
 	id   uuid.UUID
 	addr *net.UDPAddr
 	//
-	key        int
-	body       Body
-	entityType string
-	origin     *Entity
-	active     bool
-	resourceId string
+	key           int
+	body          Body
+	entityType    string
+	origin        *Entity
+	active        bool
+	resourceId    string
+	expireCounter int
 	//
 	stats Stats
 	value float64
@@ -40,6 +41,7 @@ type Entity struct {
 	onUpdate  func()
 	onCollide func(other *Entity)
 	onShoot   func()
+	onRemove  func()
 }
 
 //holding array
@@ -61,6 +63,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.body.size = size
 	newEntity.stats = NewStats()
 	newEntity.body.points = make([]Vect2, 4)
+	newEntity.expireCounter = -1
 
 	newEntity.addToCell(newEntity.calcKey())
 
@@ -101,6 +104,12 @@ func updateEntities() {
 func (e *Entity) _onUpdate() {
 	e.updateEntityCellData()
 
+	if e.expireCounter > 0 {
+		e.expireCounter -= 1
+	} else if e.expireCounter == 0 {
+		e.RemoveSelf()
+	}
+
 	//p.moveEntity(Vect2{x: movX * 15, y: movY * 15})
 	e.body.pos.x += e.body.vel.x
 	e.body.pos.y += e.body.vel.y
@@ -127,6 +136,18 @@ func (e *Entity) Die() {
 	e.SetPosition(0, 0)
 	e.stats.health = 100
 	println("Entity Died!")
+}
+
+func (e *Entity) RemoveSelf() {
+	if e.onRemove != nil {
+		e.onRemove()
+	}
+
+	removeFromMap(e.key, e.id.String())
+	delete(entities, e.id.String())
+	delete(players, e.id.String())
+	delete(bullets, e.id.String())
+	delete(items, e.id.String())
 }
 
 //------Helper functions with body--------

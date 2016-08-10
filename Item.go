@@ -15,6 +15,7 @@ func NewItem(pos Vect2, size Vect2) *Entity {
 
 func NewStatAlterItem(pos Vect2, value float64) *Entity {
 	item := NewItem(pos, Vect2{x: 1, y: 1})
+	item.resourceId = "glowing_orb"
 	item.stats.energy = value
 	item.onCollide = item.onStatAlterItemCollide
 	return item
