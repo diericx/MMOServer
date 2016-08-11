@@ -13,7 +13,7 @@ func NewItem(pos Vect2, size Vect2) *Entity {
 	return item
 }
 
-func NewStatAlterItem(pos Vect2, value float64) *Entity {
+func NewStatAlterItem(pos Vect2, value int) *Entity {
 	item := NewItem(pos, Vect2{x: 1, y: 1})
 	item.resourceId = "glowing_orb"
 	item.stats.energy = value
@@ -22,6 +22,8 @@ func NewStatAlterItem(pos Vect2, value float64) *Entity {
 }
 
 func (e *Entity) onStatAlterItemCollide(other *Entity) {
-	println("alter stats item hit!")
 	e.active = false
+	//actionObj := ServerActionObj{entity: e}
+	e.RemoveSelf()
+	//entitiesToRemove <- actionObj
 }

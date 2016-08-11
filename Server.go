@@ -26,15 +26,17 @@ type SendPacket struct {
 }
 
 type EntityData struct {
-	Id         string
-	Username   string
-	Type       string
-	ResourceId string
-	Energy     int
-	Health     float64
-	X          float64
-	Y          float64
-	Angle      float64
+	Id                   string
+	Username             string
+	Type                 string
+	ResourceId           string
+	Energy               int
+	NextEnergyCheckpoint int
+	StatUpgrades         int
+	Health               float64
+	X                    float64
+	Y                    float64
+	Angle                float64
 }
 
 type ServerActionObj struct {
@@ -142,13 +144,17 @@ func processServerOutput() {
 			for _, e := range m[key] {
 				var ed EntityData
 				ed.Id = e.id.String()
-				ed.Type = e.entityType
 				ed.Energy = int(e.stats.energy)
 				ed.ResourceId = e.resourceId
 				ed.Health = e.Health()
 				ed.X = e.body.pos.x
 				ed.Y = e.body.pos.y
 				ed.Angle = e.body.angle
+
+				if e == p {
+					ed.NextEnergyCheckpoint = energyCheckpoints[e.stats.nextEnergyCheckpoint]
+					ed.StatUpgrades = (e.stats.nextEnergyCheckpoint) - len(e.statsUpgrades)
+				}
 				objects = append(objects, ed)
 			}
 		}

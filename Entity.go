@@ -13,12 +13,13 @@ type Vect2 struct {
 }
 
 type Stats struct {
-	health        float64
-	shootTime     int
-	shootCoolDown int
-	speed         float64
-	bulletSpeed   float64
-	energy        float64
+	health               float64
+	shootTime            int
+	shootCoolDown        int
+	speed                float64
+	bulletSpeed          float64
+	energy               int
+	nextEnergyCheckpoint int
 }
 
 type Entity struct {
@@ -33,8 +34,9 @@ type Entity struct {
 	resourceId    string
 	expireCounter int
 	//
-	stats Stats
-	value float64
+	stats         Stats
+	statsUpgrades []Stats
+	value         float64
 	//action variables
 	shooting bool
 	//user defined functions
@@ -50,8 +52,12 @@ var entities = make(map[string]*Entity)
 //hash map array
 var m = make(map[int]map[string]*Entity)
 
+//channel for entities to remove
+var entitiesToRemove = make(chan ServerActionObj, 1000)
+
 //hash cell size
 var CELL_SIZE = 2000
+var energyCheckpoints = []int{}
 
 func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity := Entity{}
@@ -62,6 +68,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.body.pos = pos
 	newEntity.body.size = size
 	newEntity.stats = NewStats()
+	newEntity.statsUpgrades = []Stats{}
 	newEntity.body.points = make([]Vect2, 4)
 	newEntity.expireCounter = -1
 
@@ -75,11 +82,12 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 //default stat values
 func NewStats() Stats {
 	stats := Stats{
-		health:        100,
-		shootTime:     15,
-		shootCoolDown: 15,
-		speed:         0.5,
-		bulletSpeed:   1,
+		health:               100,
+		shootTime:            15,
+		shootCoolDown:        15,
+		speed:                0.5,
+		bulletSpeed:          1,
+		nextEnergyCheckpoint: 0,
 	}
 	return stats
 }
@@ -99,6 +107,15 @@ func updateEntities() {
 		}
 	}
 
+}
+
+func removeEntities() {
+	if len(entitiesToRemove) <= 0 {
+		return
+	}
+
+	var e = <-entitiesToRemove
+	e.entity.RemoveSelf()
 }
 
 func (e *Entity) _onUpdate() {
@@ -128,13 +145,18 @@ func (e *Entity) distanceTo(e2 *Entity) float64 {
 }
 
 func (e *Entity) dropEnergyItem() {
-	NewStatAlterItem(e.Position(), 100)
+	var energyToDrop = e.stats.energy / 2
+	if energyToDrop < 100 {
+		energyToDrop = 100
+	}
+	NewStatAlterItem(e.Position(), energyToDrop)
 }
 
 func (e *Entity) Die() {
 	e.dropEnergyItem()
 	e.SetPosition(0, 0)
 	e.stats.health = 100
+	e.stats.energy = e.stats.energy / 2
 	println("Entity Died!")
 }
 
@@ -172,7 +194,32 @@ func (s Stats) combine(s2 Stats) Stats {
 	s.shootCoolDown += s2.shootCoolDown
 	s.shootTime += s2.shootTime
 	s.speed += s2.speed
+
+	//make sure the energy checkpoint is correct
+	s.nextEnergyCheckpoint = s.getNextEnergyCheckpoint()
+
+	println("Energy: ", s.energy, " CP: ", s.nextEnergyCheckpoint)
+
 	return s
+}
+
+func fillEnergyCheckpointArray() {
+	var checkpoint int = 100
+	var i float64
+	for i = 0; i < 20; i++ {
+		checkpoint *= 3
+		//checkpoint = int(float64(checkpoint) + (float64(150) * math.Pow(2, i)))
+		energyCheckpoints = append(energyCheckpoints, checkpoint)
+	}
+}
+
+func (s Stats) getNextEnergyCheckpoint() int {
+	for i, v := range energyCheckpoints {
+		if v > s.energy {
+			return i
+		}
+	}
+	return 0
 }
 
 //------HASH MAP--------

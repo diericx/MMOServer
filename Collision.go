@@ -13,7 +13,6 @@ func (e *Entity) detectCollisions() bool {
 			}
 			otherE.body.updatePoints()
 			if e.isCollidingWith(otherE) {
-				println(e.entityType, (e.onCollide != nil), otherE.entityType, (otherE.onCollide != nil))
 				//call on collide functions
 				if e.onCollide != nil {
 					e.onCollide(otherE)
