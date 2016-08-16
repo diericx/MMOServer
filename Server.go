@@ -26,17 +26,22 @@ type SendPacket struct {
 }
 
 type EntityData struct {
-	Id                   string
-	Username             string
-	Type                 string
-	ResourceId           string
-	Energy               int
+	Id         string
+	Username   string
+	Type       string
+	ResourceId string
+	Energy     int
+	StatsObj   Stats
+	Health     float64
+	X          float64
+	Y          float64
+	Angle      float64
+	//current player data only
 	NextEnergyCheckpoint int
 	StatUpgrades         int
-	Health               float64
-	X                    float64
-	Y                    float64
-	Angle                float64
+	MaxHealth            int
+	Speed                float64
+	FireRate             int
 }
 
 type ServerActionObj struct {
@@ -46,7 +51,7 @@ type ServerActionObj struct {
 	entity           *Entity
 }
 
-var LISTEN_ADDRESS = "192.168.0.112:7777"
+var LISTEN_ADDRESS = ":7777"
 var BUF_SIZE = 2048
 
 //variables for decoding
@@ -126,6 +131,28 @@ func processServerInput() {
 			//set angle and shooting variable
 			player.body.angle = angleInRad
 			player.shooting = serverInputObj.receivePacketObj.Shooting
+		} else if packet.Action == "upgradeHealth" {
+			if player.getAvailableUpgrades() > 0 {
+				s := Stats{}
+				s.maxHealth = HEALTH_MOD
+				player.stats = player.stats.combine(s)
+				player.statsUpgrades = append(player.statsUpgrades, s)
+			}
+		} else if packet.Action == "upgradeSpeed" {
+			if player.getAvailableUpgrades() > 0 {
+				s := Stats{}
+				s.speed = SPEED_MOD
+				player.stats = player.stats.combine(s)
+				player.statsUpgrades = append(player.statsUpgrades, s)
+			}
+		} else if packet.Action == "upgradeFireRate" {
+			if player.getAvailableUpgrades() > 0 {
+				println("UP FIRE RATE")
+				s := Stats{}
+				s.fireRate = FIRERATE_MOD
+				player.stats = player.stats.combine(s)
+				player.statsUpgrades = append(player.statsUpgrades, s)
+			}
 		}
 	}
 
@@ -153,7 +180,10 @@ func processServerOutput() {
 
 				if e == p {
 					ed.NextEnergyCheckpoint = energyCheckpoints[e.stats.nextEnergyCheckpoint]
-					ed.StatUpgrades = (e.stats.nextEnergyCheckpoint) - len(e.statsUpgrades)
+					ed.StatUpgrades = e.getAvailableUpgrades()
+					ed.MaxHealth = e.stats.maxHealth
+					ed.Speed = e.stats.speed
+					ed.FireRate = e.stats.fireRate
 				}
 				objects = append(objects, ed)
 			}

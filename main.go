@@ -1,6 +1,12 @@
 package main
 
-import "time"
+import (
+	"math/rand"
+	"time"
+)
+
+var s1 = rand.NewSource(time.Now().UnixNano())
+var r1 = rand.New(s1)
 
 func main() {
 
@@ -10,7 +16,7 @@ func main() {
 
 	//create some entities
 	for i := 0; i < 10; i++ {
-		NewStatAlterItem(Vect2{x: float64(i * 2), y: 0}, 100)
+		NewStatAlterItemEntity(Vect2{x: float64(i * 2), y: 0}, 100)
 	}
 
 	//NewStatAlterItem(Vect2{x: 0, y: 0}, 100)
@@ -21,8 +27,8 @@ func main() {
 		w := ForLoopWaiter{start: time.Now()}
 
 		processServerInput()
-		processServerOutput()
 		updateEntities()
+		processServerOutput()
 		sendServerOutput()
 
 		w.waitForTime(FRAME_WAIT_TIME)

@@ -8,6 +8,9 @@ import (
 var players = make(map[string]*Entity)
 
 var PLAYER_SIZE float64 = 1
+var HEALTH_MOD int = 20
+var SPEED_MOD float64 = 0.5
+var FIRERATE_MOD int = 2
 
 func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
@@ -31,15 +34,15 @@ func (e *Entity) playerShoot() {
 func (e *Entity) playerUpdateFunc() {
 	e.detectCollisions()
 
-	if e.stats.shootCoolDown >= 0 {
-		e.stats.shootCoolDown -= 1
+	if e.stats.fireCoolDown >= 0 {
+		e.stats.fireCoolDown -= 1
 	}
 
 	if e.shooting {
-		if e.stats.shootCoolDown <= 0 {
+		if e.stats.fireCoolDown <= 0 {
 			//if able to shoot, call shoot function
 			e.playerShoot()
-			e.stats.shootCoolDown = e.stats.shootTime
+			e.stats.fireCoolDown = e.stats.fireRate
 		}
 	}
 }

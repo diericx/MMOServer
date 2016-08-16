@@ -14,10 +14,12 @@ type Vect2 struct {
 
 type Stats struct {
 	health               float64
-	shootTime            int
-	shootCoolDown        int
+	maxHealth            int
+	fireRate             int
+	fireCoolDown         int
 	speed                float64
 	bulletSpeed          float64
+	damage               float64
 	energy               int
 	nextEnergyCheckpoint int
 }
@@ -35,7 +37,9 @@ type Entity struct {
 	expireCounter int
 	//
 	stats         Stats
+	stats_calc    Stats
 	statsUpgrades []Stats
+	equipped      map[string]Item
 	value         float64
 	//action variables
 	shooting bool
@@ -69,8 +73,11 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.body.size = size
 	newEntity.stats = NewStats()
 	newEntity.statsUpgrades = []Stats{}
+	newEntity.equipped = NewDefaultEquippedArray()
 	newEntity.body.points = make([]Vect2, 4)
 	newEntity.expireCounter = -1
+	//calculate stats from equipped items
+	newEntity.calculateStats()
 
 	newEntity.addToCell(newEntity.calcKey())
 
@@ -83,10 +90,12 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 func NewStats() Stats {
 	stats := Stats{
 		health:               100,
-		shootTime:            15,
-		shootCoolDown:        15,
+		maxHealth:            100,
+		fireRate:             15,
+		fireCoolDown:         15,
 		speed:                0.5,
 		bulletSpeed:          1,
+		damage:               1,
 		nextEnergyCheckpoint: 0,
 	}
 	return stats
@@ -149,7 +158,7 @@ func (e *Entity) dropEnergyItem() {
 	if energyToDrop < 100 {
 		energyToDrop = 100
 	}
-	NewStatAlterItem(e.Position(), energyToDrop)
+	NewStatAlterItemEntity(e.Position(), energyToDrop)
 }
 
 func (e *Entity) Die() {
@@ -191,14 +200,13 @@ func (s Stats) combine(s2 Stats) Stats {
 	s.bulletSpeed += s2.bulletSpeed
 	s.energy += s2.energy
 	s.health += s2.health
-	s.shootCoolDown += s2.shootCoolDown
-	s.shootTime += s2.shootTime
+	s.maxHealth += s2.maxHealth
+	s.fireCoolDown += s2.fireCoolDown
+	s.fireRate += s2.fireRate
 	s.speed += s2.speed
 
 	//make sure the energy checkpoint is correct
 	s.nextEnergyCheckpoint = s.getNextEnergyCheckpoint()
-
-	println("Energy: ", s.energy, " CP: ", s.nextEnergyCheckpoint)
 
 	return s
 }
@@ -220,6 +228,17 @@ func (s Stats) getNextEnergyCheckpoint() int {
 		}
 	}
 	return 0
+}
+
+func (e *Entity) getAvailableUpgrades() int {
+	return (e.stats.nextEnergyCheckpoint) - len(e.statsUpgrades)
+}
+
+func (e *Entity) calculateStats() {
+	e.stats_calc = e.stats
+	for _, v := range e.equipped {
+		e.stats_calc.combine(v.stats)
+	}
 }
 
 //------HASH MAP--------

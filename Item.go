@@ -2,23 +2,44 @@ package main
 
 var items = make(map[string]*Entity)
 
-func NewItem(pos Vect2, size Vect2) *Entity {
-	item := NewEntity(pos, size)
-	item.entityType = "item"
-	item.stats = Stats{}
-	//funcs
-
-	items[item.id.String()] = item
-
-	return item
+type Item struct {
+	stats Stats
+	rng   []int
+	name  string
 }
 
-func NewStatAlterItem(pos Vect2, value int) *Entity {
-	item := NewItem(pos, Vect2{x: 1, y: 1})
-	item.resourceId = "glowing_orb"
-	item.stats.energy = value
-	item.onCollide = item.onStatAlterItemCollide
-	return item
+func NewItem(name string) Item {
+	i := Item{}
+	i.name = name
+	i.rng = make([]int, 2)
+	return i
+}
+
+func NewItemEntity(pos Vect2, size Vect2) *Entity {
+	e := NewEntity(pos, size)
+	e.entityType = "item"
+	e.stats = Stats{}
+	//funcs
+
+	items[e.id.String()] = e
+
+	return e
+}
+
+func NewStatAlterItemEntity(pos Vect2, value int) *Entity {
+	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
+	e.resourceId = "glowing_orb"
+	e.stats.energy = value
+	e.onCollide = e.onStatAlterItemCollide
+	return e
+}
+
+func NewDefaultEquippedArray() map[string]Item {
+	equ := make(map[string]Item)
+	equ["weapon"] = NewItem("Marc Laser")
+	equ["weapon"].rng[0] = 5
+	equ["weapon"].rng[1] = 10
+	return equ
 }
 
 func (e *Entity) onStatAlterItemCollide(other *Entity) {
