@@ -16,6 +16,7 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
 	p.addr = addr
 	p.entityType = "player"
+	p.resourceId = "default_player"
 	//funcs
 	p.onUpdate = p.playerUpdateFunc
 	p.onCollide = p.playerOnCollide
@@ -28,7 +29,7 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 func (e *Entity) playerShoot() {
 	var b = NewBullet(e.body.pos, Vect2{x: 0.5, y: 1}, e)
 	b.body.angle = e.body.angle + (math.Pi / 2)
-	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats.bulletSpeed, y: math.Sin(b.body.angle) * e.stats.bulletSpeed}
+	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats_calc.bulletSpeed, y: math.Sin(b.body.angle) * e.stats_calc.bulletSpeed}
 }
 
 func (e *Entity) playerUpdateFunc() {
@@ -51,7 +52,7 @@ func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
 		println("COLLIDE WITH BULLET", other.value, e.Health())
 		e.stats.health -= other.value
-	} else if other.entityType == "item" {
+	} else if other.entityType == "stat-alter-item" {
 		println("Collide with item!")
 		e.stats = e.stats.combine(other.stats)
 	}

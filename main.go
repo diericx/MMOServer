@@ -15,9 +15,9 @@ func main() {
 	fillEnergyCheckpointArray()
 
 	//create some entities
-	for i := 0; i < 10; i++ {
-		NewStatAlterItemEntity(Vect2{x: float64(i * 2), y: 0}, 100)
-	}
+	// for i := 0; i < 10; i++ {
+	// 	NewStatAlterItemEntity(Vect2{x: float64(i * 2), y: 0}, 100)
+	// }
 
 	//NewStatAlterItem(Vect2{x: 0, y: 0}, 100)
 

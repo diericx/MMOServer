@@ -40,6 +40,7 @@ type Entity struct {
 	stats_calc    Stats
 	statsUpgrades []Stats
 	equipped      map[string]Item
+	inventory     []Item
 	value         float64
 	//action variables
 	shooting bool
@@ -61,6 +62,7 @@ var entitiesToRemove = make(chan ServerActionObj, 1000)
 
 //hash cell size
 var CELL_SIZE = 2000
+var INVENTORY_MAX = 10
 var energyCheckpoints = []int{}
 
 func NewEntity(pos Vect2, size Vect2) *Entity {
@@ -73,6 +75,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.body.size = size
 	newEntity.stats = NewStats()
 	newEntity.statsUpgrades = []Stats{}
+	newEntity.inventory = make([]Item, INVENTORY_MAX)
 	newEntity.equipped = NewDefaultEquippedArray()
 	newEntity.body.points = make([]Vect2, 4)
 	newEntity.expireCounter = -1
@@ -93,7 +96,7 @@ func NewStats() Stats {
 		maxHealth:            100,
 		fireRate:             15,
 		fireCoolDown:         15,
-		speed:                0.5,
+		speed:                0.2,
 		bulletSpeed:          1,
 		damage:               1,
 		nextEnergyCheckpoint: 0,

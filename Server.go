@@ -116,14 +116,16 @@ func processServerInput() {
 			var movY float64 = 0
 
 			//calculate angles
-			angleInRad := ((packet.Angle * math.Pi) / 180)
+			angleInRad := -((packet.Angle * math.Pi) / 180)
 			angleInRadForward := angleInRad + (math.Pi / 2)
 			angleInRadRight := angleInRad
+
 			//calculate velocity
 			movX += math.Cos(angleInRadForward) * float64(packet.Y)
 			movY += math.Sin(angleInRadForward) * float64(packet.Y)
 			movX += math.Cos(angleInRadRight) * float64(packet.X)
 			movY += math.Sin(angleInRadRight) * float64(packet.X)
+
 			//edit body velocity
 			player.body.vel.x = movX * player.stats.speed
 			player.body.vel.y = movY * player.stats.speed
