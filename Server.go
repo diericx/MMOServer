@@ -6,7 +6,8 @@ import (
 	"math"
 	"net"
 	"os"
-	"ugorji/go/codec"
+
+	"github.com/ugorji/go/codec"
 )
 
 type ReceivePacket struct {
