@@ -13,15 +13,15 @@ type Vect2 struct {
 }
 
 type Stats struct {
-	health               float64
-	maxHealth            int
-	fireRate             int
-	fireCoolDown         int
-	speed                float64
-	bulletSpeed          float64
-	damage               float64
-	energy               int
-	nextEnergyCheckpoint int
+	Health               float64
+	MaxHealth            int
+	FireRate             int
+	FireCoolDown         int
+	Speed                float64
+	BulletSpeed          float64
+	Damage               float64
+	Energy               int
+	NextEnergyCheckpoint int
 }
 
 type Entity struct {
@@ -92,14 +92,14 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 //default stat values
 func NewStats() Stats {
 	stats := Stats{
-		health:               100,
-		maxHealth:            100,
-		fireRate:             15,
-		fireCoolDown:         15,
-		speed:                0.2,
-		bulletSpeed:          1,
-		damage:               1,
-		nextEnergyCheckpoint: 0,
+		Health:               100,
+		MaxHealth:            100,
+		FireRate:             15,
+		FireCoolDown:         15,
+		Speed:                0.2,
+		BulletSpeed:          1,
+		Damage:               1,
+		NextEnergyCheckpoint: 0,
 	}
 	return stats
 }
@@ -158,7 +158,7 @@ func (e *Entity) distanceTo(e2 *Entity) float64 {
 }
 
 func (e *Entity) dropEnergyItem() {
-	var energyToDrop = e.stats.energy / 2
+	var energyToDrop = e.stats.Energy / 2
 	if energyToDrop < 100 {
 		energyToDrop = 100
 	}
@@ -168,8 +168,8 @@ func (e *Entity) dropEnergyItem() {
 func (e *Entity) Die() {
 	e.dropEnergyItem()
 	e.SetPosition(0, 0)
-	e.stats.health = 100
-	e.stats.energy = e.stats.energy / 2
+	e.stats.Health = 100
+	e.stats.Energy = e.stats.Energy / 2
 	println("Entity Died!")
 }
 
@@ -198,21 +198,21 @@ func (e *Entity) Position() Vect2 {
 }
 
 func (e *Entity) Health() float64 {
-	return e.stats.health
+	return e.stats.Health
 }
 
 //stats
 func (s Stats) combine(s2 Stats) Stats {
-	s.bulletSpeed += s2.bulletSpeed
-	s.energy += s2.energy
-	s.health += s2.health
-	s.maxHealth += s2.maxHealth
-	s.fireCoolDown += s2.fireCoolDown
-	s.fireRate += s2.fireRate
-	s.speed += s2.speed
+	s.BulletSpeed += s2.BulletSpeed
+	s.Energy += s2.Energy
+	s.Health += s2.Health
+	s.MaxHealth += s2.MaxHealth
+	s.FireCoolDown += s2.FireCoolDown
+	s.FireRate += s2.FireRate
+	s.Speed += s2.Speed
 
 	//make sure the energy checkpoint is correct
-	s.nextEnergyCheckpoint = s.getNextEnergyCheckpoint()
+	s.NextEnergyCheckpoint = s.getNextEnergyCheckpoint()
 
 	return s
 }
@@ -229,7 +229,7 @@ func fillEnergyCheckpointArray() {
 
 func (s Stats) getNextEnergyCheckpoint() int {
 	for i, v := range energyCheckpoints {
-		if v > s.energy {
+		if v > s.Energy {
 			return i
 		}
 	}
@@ -237,20 +237,20 @@ func (s Stats) getNextEnergyCheckpoint() int {
 }
 
 func (e *Entity) getAvailableUpgrades() int {
-	return (e.stats.nextEnergyCheckpoint) - len(e.statsUpgrades)
+	return (e.stats.NextEnergyCheckpoint) - len(e.statsUpgrades)
 }
 
 func (e *Entity) calculateStats() {
 	e.stats_calc = e.stats
 	for _, v := range e.equipped {
-		e.stats_calc.combine(v.stats)
+		e.stats_calc.combine(v.StatsObj)
 	}
 }
 
 //Inventory
 func (e *Entity) addItemToInventory(item Item) {
 	for i, currentItem := range e.inventory {
-		if currentItem.name == "" {
+		if currentItem.Name == "" {
 			e.inventory[i] = item
 		}
 	}

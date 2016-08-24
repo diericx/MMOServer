@@ -32,17 +32,14 @@ type EntityData struct {
 	Type       string
 	ResourceId string
 	Energy     int
-	StatsObj   Stats
 	Health     float64
 	X          float64
 	Y          float64
 	Angle      float64
 	//current player data only
-	NextEnergyCheckpoint int
-	StatUpgrades         int
-	MaxHealth            int
-	Speed                float64
-	FireRate             int
+	Inventory    []Item
+	StatsObj     Stats
+	StatUpgrades int
 }
 
 type ServerActionObj struct {
@@ -131,8 +128,8 @@ func processServerInput() {
 			movY += math.Sin(angleInRadRight) * float64(packet.X)
 
 			//edit body velocity
-			player.body.vel.x = movX * player.stats.speed
-			player.body.vel.y = movY * player.stats.speed
+			player.body.vel.x = movX * player.stats.Speed
+			player.body.vel.y = movY * player.stats.Speed
 
 			//set angle and shooting variable
 			player.body.angle = angleInRad
@@ -140,14 +137,14 @@ func processServerInput() {
 		} else if packet.Action == "upgradeHealth" {
 			if player.getAvailableUpgrades() > 0 {
 				s := Stats{}
-				s.maxHealth = HEALTH_MOD
+				s.MaxHealth = HEALTH_MOD
 				player.stats = player.stats.combine(s)
 				player.statsUpgrades = append(player.statsUpgrades, s)
 			}
 		} else if packet.Action == "upgradeSpeed" {
 			if player.getAvailableUpgrades() > 0 {
 				s := Stats{}
-				s.speed = SPEED_MOD
+				s.Speed = SPEED_MOD
 				player.stats = player.stats.combine(s)
 				player.statsUpgrades = append(player.statsUpgrades, s)
 			}
@@ -155,7 +152,7 @@ func processServerInput() {
 			if player.getAvailableUpgrades() > 0 {
 				println("UP FIRE RATE")
 				s := Stats{}
-				s.fireRate = FIRERATE_MOD
+				s.FireRate = FIRERATE_MOD
 				player.stats = player.stats.combine(s)
 				player.statsUpgrades = append(player.statsUpgrades, s)
 			}
@@ -177,7 +174,7 @@ func processServerOutput() {
 			for _, e := range m[key] {
 				var ed EntityData
 				ed.Id = e.id.String()
-				ed.Energy = int(e.stats.energy)
+				ed.Energy = int(e.stats.Energy)
 				ed.ResourceId = e.resourceId
 				ed.Type = e.entityType
 				ed.Health = e.Health()
@@ -186,11 +183,9 @@ func processServerOutput() {
 				ed.Angle = e.body.angle
 
 				if e == p {
-					ed.NextEnergyCheckpoint = energyCheckpoints[e.stats.nextEnergyCheckpoint]
+					ed.StatsObj = e.stats
+					ed.Inventory = e.inventory
 					ed.StatUpgrades = e.getAvailableUpgrades()
-					ed.MaxHealth = e.stats.maxHealth
-					ed.Speed = e.stats.speed
-					ed.FireRate = e.stats.fireRate
 				}
 				objects = append(objects, ed)
 			}

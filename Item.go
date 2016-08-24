@@ -3,15 +3,15 @@ package main
 var items = make(map[string]*Entity)
 
 type Item struct {
-	stats Stats
-	rng   []int
-	name  string
+	StatsObj Stats
+	Rng      []int
+	Name     string
 }
 
 func NewItem(name string) Item {
 	i := Item{}
-	i.name = name
-	i.rng = make([]int, 2)
+	i.Name = name
+	i.Rng = make([]int, 2)
 	return i
 }
 
@@ -30,7 +30,7 @@ func NewStatAlterItemEntity(pos Vect2, value int) *Entity {
 	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
 	e.entityType = "item-stat-alter"
 	e.resourceId = "glowing_orb"
-	e.stats.energy = value
+	e.stats.Energy = value
 	e.onCollide = e.onItemStatAlterCollide
 	return e
 }
@@ -38,8 +38,8 @@ func NewStatAlterItemEntity(pos Vect2, value int) *Entity {
 func NewItemPickupEntity(pos Vect2, name string, s Stats) *Entity {
 	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
 	e.inventory[0] = Item{
-		stats: s,
-		name:  name,
+		StatsObj: s,
+		Name:     name,
 	}
 	e.entityType = "item-pickup"
 	e.resourceId = "default_item"
@@ -50,8 +50,8 @@ func NewItemPickupEntity(pos Vect2, name string, s Stats) *Entity {
 func NewDefaultEquippedArray() map[string]Item {
 	equ := make(map[string]Item)
 	equ["weapon"] = NewItem("Marc Laser")
-	equ["weapon"].rng[0] = 5
-	equ["weapon"].rng[1] = 10
+	equ["weapon"].Rng[0] = 5
+	equ["weapon"].Rng[1] = 10
 	return equ
 }
 

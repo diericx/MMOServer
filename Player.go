@@ -33,28 +33,28 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 func (e *Entity) playerShoot() {
 	var b = NewBullet(e.body.pos, Vect2{x: 0.5, y: 1}, e)
 	b.body.angle = e.body.angle + (math.Pi / 2)
-	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats_calc.bulletSpeed, y: math.Sin(b.body.angle) * e.stats_calc.bulletSpeed}
+	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats_calc.BulletSpeed, y: math.Sin(b.body.angle) * e.stats_calc.BulletSpeed}
 }
 
 func (e *Entity) playerUpdateFunc() {
 	e.detectCollisions()
 
-	if e.stats.fireCoolDown >= 0 {
-		e.stats.fireCoolDown -= 1
+	if e.stats.FireCoolDown >= 0 {
+		e.stats.FireCoolDown -= 1
 	}
 
 	if e.shooting {
-		if e.stats.fireCoolDown <= 0 {
+		if e.stats.FireCoolDown <= 0 {
 			//if able to shoot, call shoot function
 			e.playerShoot()
-			e.stats.fireCoolDown = e.stats.fireRate
+			e.stats.FireCoolDown = e.stats.FireRate
 		}
 	}
 }
 
 func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
-		e.stats.health -= other.value
+		e.stats.Health -= other.value
 	} else if other.entityType == "item-stat-alter" {
 		e.stats = e.stats.combine(other.stats)
 	} else if other.entityType == "item-pickup" {
