@@ -61,7 +61,7 @@ var m = make(map[int]map[string]*Entity)
 var entitiesToRemove = make(chan ServerActionObj, 1000)
 
 //hash cell size
-var CELL_SIZE = 10
+var CELL_SIZE = 15
 var INVENTORY_MAX = 10
 var energyCheckpoints = []int{}
 
@@ -181,7 +181,8 @@ func (e *Entity) RemoveSelf() {
 	delete(players, e.id.String())
 	delete(bullets, e.id.String())
 	delete(items, e.id.String())
-	removeFromMap(e.key, e.id.String())
+	delete(m[e.key], e.id.String())
+	//removeFromMap(e.key, e.id.String())
 }
 
 //------Helper functions with body--------
