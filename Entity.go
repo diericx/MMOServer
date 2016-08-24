@@ -177,11 +177,11 @@ func (e *Entity) RemoveSelf() {
 		e.onRemove()
 	}
 
-	removeFromMap(e.key, e.id.String())
 	delete(entities, e.id.String())
 	delete(players, e.id.String())
 	delete(bullets, e.id.String())
 	delete(items, e.id.String())
+	removeFromMap(e.key, e.id.String())
 }
 
 //------Helper functions with body--------
