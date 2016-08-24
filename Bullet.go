@@ -36,4 +36,5 @@ func (b *Entity) bulletUpdateFunc() {
 
 func (b *Entity) bulletCollideFunc(other *Entity) {
 	b.active = false
+	b.RemoveSelf()
 }
