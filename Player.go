@@ -7,6 +7,8 @@ import (
 
 var players = make(map[string]*Entity)
 
+var PLAYER_EXPIRE_TIME int = 60
+
 var PLAYER_SIZE float64 = 1
 var HEALTH_MOD int = 20
 var SPEED_MOD float64 = 0.5
@@ -20,6 +22,8 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	//funcs
 	p.onUpdate = p.playerUpdateFunc
 	p.onCollide = p.playerOnCollide
+	//expire
+	p.expireCounter = PLAYER_EXPIRE_TIME
 
 	players[addr.String()] = p
 

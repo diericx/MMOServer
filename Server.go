@@ -116,6 +116,9 @@ func processServerInput() {
 			var movX float64 = 0
 			var movY float64 = 0
 
+			//update expire
+			player.expireCounter = PLAYER_EXPIRE_TIME
+
 			//calculate angles
 			angleInRad := -((packet.Angle * math.Pi) / 180)
 			angleInRadForward := angleInRad + (math.Pi / 2)

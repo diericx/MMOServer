@@ -133,6 +133,7 @@ func removeEntities() {
 func (e *Entity) _onUpdate() {
 	e.updateEntityCellData()
 
+	//check for expiration
 	if e.expireCounter > 0 {
 		e.expireCounter -= 1
 	} else if e.expireCounter == 0 {
@@ -178,7 +179,7 @@ func (e *Entity) RemoveSelf() {
 	}
 
 	delete(entities, e.id.String())
-	delete(players, e.id.String())
+	delete(players, e.addr.String())
 	delete(bullets, e.id.String())
 	delete(items, e.id.String())
 	removeFromMap(e.key, e.id.String())
