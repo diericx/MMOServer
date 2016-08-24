@@ -27,6 +27,7 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 }
 
 func (e *Entity) playerShoot() {
+	println(len(entities))
 	var b = NewBullet(e.body.pos, Vect2{x: 0.5, y: 1}, e)
 	b.body.angle = e.body.angle + (math.Pi / 2)
 	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats_calc.bulletSpeed, y: math.Sin(b.body.angle) * e.stats_calc.bulletSpeed}

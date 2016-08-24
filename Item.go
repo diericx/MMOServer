@@ -45,7 +45,6 @@ func NewDefaultEquippedArray() map[string]Item {
 
 func (e *Entity) onStatAlterItemCollide(other *Entity) {
 	e.active = false
-	println("collided with stat alter item!! callback")
 	//actionObj := ServerActionObj{entity: e}
 	e.RemoveSelf()
 	//entitiesToRemove <- actionObj
