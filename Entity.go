@@ -181,8 +181,7 @@ func (e *Entity) RemoveSelf() {
 	delete(players, e.id.String())
 	delete(bullets, e.id.String())
 	delete(items, e.id.String())
-	delete(m[e.key], e.id.String())
-	//removeFromMap(e.key, e.id.String())
+	removeFromMap(e.key, e.id.String())
 }
 
 //------Helper functions with body--------
@@ -263,6 +262,7 @@ func (e *Entity) addToCell(c int) {
 	}
 
 	m[c][e.id.String()] = e
+	e.key = c
 }
 
 //if the entity is in a new cell, update it's cell data

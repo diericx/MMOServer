@@ -6,8 +6,6 @@ var bullets = make(map[string]*Entity)
 func NewBullet(pos Vect2, size Vect2, origin *Entity) *Entity {
 	b := NewEntity(pos, size)
 	b.origin = origin
-	b.body.pos = pos
-	b.body.size = size
 	b.entityType = "bullet"
 	b.resourceId = "default_bullet"
 	b.onUpdate = b.bulletUpdateFunc
