@@ -187,6 +187,7 @@ func (e *Entity) RemoveSelf() {
 
 //------Helper functions with body--------
 
+//body
 func (e *Entity) SetPosition(x float64, y float64) {
 	e.body.pos.x = x
 	e.body.pos.y = y
@@ -200,6 +201,7 @@ func (e *Entity) Health() float64 {
 	return e.stats.health
 }
 
+//stats
 func (s Stats) combine(s2 Stats) Stats {
 	s.bulletSpeed += s2.bulletSpeed
 	s.energy += s2.energy
@@ -242,6 +244,15 @@ func (e *Entity) calculateStats() {
 	e.stats_calc = e.stats
 	for _, v := range e.equipped {
 		e.stats_calc.combine(v.stats)
+	}
+}
+
+//Inventory
+func (e *Entity) addItemToInventory(item Item) {
+	for i, currentItem := range e.inventory {
+		if currentItem.name == "" {
+			e.inventory[i] = item
+		}
 	}
 }
 

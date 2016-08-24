@@ -179,6 +179,7 @@ func processServerOutput() {
 				ed.Id = e.id.String()
 				ed.Energy = int(e.stats.energy)
 				ed.ResourceId = e.resourceId
+				ed.Type = e.entityType
 				ed.Health = e.Health()
 				ed.X = e.body.pos.x
 				ed.Y = e.body.pos.y

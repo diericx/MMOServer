@@ -28,10 +28,22 @@ func NewItemEntity(pos Vect2, size Vect2) *Entity {
 
 func NewStatAlterItemEntity(pos Vect2, value int) *Entity {
 	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
-	e.entityType = "stat-alter-item"
+	e.entityType = "item-stat-alter"
 	e.resourceId = "glowing_orb"
 	e.stats.energy = value
-	e.onCollide = e.onStatAlterItemCollide
+	e.onCollide = e.onItemStatAlterCollide
+	return e
+}
+
+func NewItemPickupEntity(pos Vect2, name string, s Stats) *Entity {
+	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
+	e.inventory[0] = Item{
+		stats: s,
+		name:  name,
+	}
+	e.entityType = "item-pickup"
+	e.resourceId = "default_item"
+	e.onCollide = e.onItemPickupCollide
 	return e
 }
 
@@ -43,9 +55,12 @@ func NewDefaultEquippedArray() map[string]Item {
 	return equ
 }
 
-func (e *Entity) onStatAlterItemCollide(other *Entity) {
+func (e *Entity) onItemStatAlterCollide(other *Entity) {
 	e.active = false
-	//actionObj := ServerActionObj{entity: e}
 	e.RemoveSelf()
-	//entitiesToRemove <- actionObj
+}
+
+func (e *Entity) onItemPickupCollide(other *Entity) {
+	e.active = false
+	e.RemoveSelf()
 }

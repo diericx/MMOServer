@@ -55,7 +55,9 @@ func (e *Entity) playerUpdateFunc() {
 func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
 		e.stats.health -= other.value
-	} else if other.entityType == "stat-alter-item" {
+	} else if other.entityType == "item-stat-alter" {
 		e.stats = e.stats.combine(other.stats)
+	} else if other.entityType == "item-pickup" {
+		e.addItemToInventory(e.inventory[0])
 	}
 }
