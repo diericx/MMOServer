@@ -170,7 +170,7 @@ func (e *Entity) Die() {
 	e.SetPosition(0, 0)
 	e.stats.Health = 100
 	e.stats.Energy = e.stats.Energy / 2
-	println("Entity Died!")
+	e.stats.NextEnergyCheckpoint = e.stats.getNextEnergyCheckpoint()
 }
 
 func (e *Entity) RemoveSelf() {
@@ -245,6 +245,7 @@ func (e *Entity) calculateStats() {
 	for _, v := range e.equipped {
 		e.stats_calc.combine(v.StatsObj)
 	}
+	//e.stats.NextEnergyCheckpoint = e.statsx.getNextEnergyCheckpoint()
 }
 
 //Inventory
@@ -252,8 +253,21 @@ func (e *Entity) addItemToInventory(item Item) {
 	for i, currentItem := range e.inventory {
 		if currentItem.Name == "" {
 			e.inventory[i] = item
+			return
 		}
 	}
+}
+
+func (e *Entity) removeItemFromInventory(slot int) {
+	e.inventory[slot] = Item{}
+}
+
+func (e *Entity) attemptToEquip(slot int) {
+	if e.inventory[slot].Name != "" {
+		e.equipped[e.inventory[slot].ItemType] = e.inventory[slot]
+		e.removeItemFromInventory(slot)
+	}
+	e.calculateStats()
 }
 
 //------HASH MAP--------

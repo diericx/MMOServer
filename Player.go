@@ -58,6 +58,6 @@ func (e *Entity) playerOnCollide(other *Entity) {
 	} else if other.entityType == "item-stat-alter" {
 		e.stats = e.stats.combine(other.stats)
 	} else if other.entityType == "item-pickup" {
-		e.addItemToInventory(e.inventory[0])
+		e.addItemToInventory(other.inventory[0])
 	}
 }

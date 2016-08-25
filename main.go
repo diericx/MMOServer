@@ -19,10 +19,11 @@ func main() {
 	// 	NewStatAlterItemEntity(Vect2{x: float64(i * 2), y: 0}, 100)
 	// }
 	s := Stats{
-		MaxHealth: 100,
+		Damage: 100,
 	}
-	NewItemPickupEntity(Vect2{x: 3, y: 3}, "Awesome Item", s)
-
+	newi := NewItemPickupEntity(Vect2{x: 3, y: 3}, "Awesome Item", "weapon", s)
+	newi.inventory[0].Rng[0] = 100
+	newi.inventory[0].Rng[1] = 101
 	//NewStatAlterItem(Vect2{x: 0, y: 0}, 100)
 
 	go listenForPackets()

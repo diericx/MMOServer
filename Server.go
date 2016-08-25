@@ -134,6 +134,8 @@ func processServerInput() {
 			//set angle and shooting variable
 			player.body.angle = angleInRad
 			player.shooting = serverInputObj.receivePacketObj.Shooting
+		} else if packet.Action == "attempt-equip" {
+			player.attemptToEquip(int(packet.X))
 		} else if packet.Action == "upgradeHealth" {
 			if player.getAvailableUpgrades() > 0 {
 				s := Stats{}
@@ -183,7 +185,11 @@ func processServerOutput() {
 				ed.Angle = e.body.angle
 
 				if e == p {
-					ed.StatsObj = e.stats
+					//edit stats
+					s := e.stats
+					s.NextEnergyCheckpoint = energyCheckpoints[s.NextEnergyCheckpoint]
+					//send player data
+					ed.StatsObj = s
 					ed.Inventory = e.inventory
 					ed.StatUpgrades = e.getAvailableUpgrades()
 				}

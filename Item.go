@@ -6,11 +6,13 @@ type Item struct {
 	StatsObj Stats
 	Rng      []int
 	Name     string
+	ItemType string
 }
 
-func NewItem(name string) Item {
+func NewItem(name string, itemType string) Item {
 	i := Item{}
 	i.Name = name
+	i.ItemType = itemType
 	i.Rng = make([]int, 2)
 	return i
 }
@@ -35,12 +37,10 @@ func NewStatAlterItemEntity(pos Vect2, value int) *Entity {
 	return e
 }
 
-func NewItemPickupEntity(pos Vect2, name string, s Stats) *Entity {
+func NewItemPickupEntity(pos Vect2, name string, itemType string, s Stats) *Entity {
 	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
-	e.inventory[0] = Item{
-		StatsObj: s,
-		Name:     name,
-	}
+	e.inventory[0] = NewItem(name, itemType)
+	e.inventory[0].StatsObj = s
 	e.entityType = "item-pickup"
 	e.resourceId = "default_item"
 	e.onCollide = e.onItemPickupCollide
@@ -49,7 +49,7 @@ func NewItemPickupEntity(pos Vect2, name string, s Stats) *Entity {
 
 func NewDefaultEquippedArray() map[string]Item {
 	equ := make(map[string]Item)
-	equ["weapon"] = NewItem("Marc Laser")
+	equ["weapon"] = NewItem("Marc Laser", "weapon")
 	equ["weapon"].Rng[0] = 5
 	equ["weapon"].Rng[1] = 10
 	return equ
