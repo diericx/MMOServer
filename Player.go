@@ -54,7 +54,11 @@ func (e *Entity) playerUpdateFunc() {
 
 func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
-		e.stats.Health -= other.value
+		var damageToTake = other.value - float64(e.stats_calc.Defense)
+		if damageToTake <= 0 {
+			damageToTake = 1
+		}
+		e.stats.Health -= damageToTake
 	} else if other.entityType == "item-stat-alter" {
 		e.stats = e.stats.combine(other.stats)
 	} else if other.entityType == "item-pickup" {

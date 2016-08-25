@@ -14,6 +14,7 @@ type Vect2 struct {
 
 type Stats struct {
 	Health               float64
+	Defense              int
 	MaxHealth            int
 	FireRate             int
 	FireCoolDown         int
@@ -94,6 +95,7 @@ func NewStats() Stats {
 	stats := Stats{
 		Health:               100,
 		MaxHealth:            100,
+		Defense:              0,
 		FireRate:             15,
 		FireCoolDown:         15,
 		Speed:                0.2,
@@ -167,6 +169,7 @@ func (e *Entity) dropEnergyItem() {
 
 func (e *Entity) Die() {
 	e.dropEnergyItem()
+	e.dropEquippedItem("weapon")
 	e.SetPosition(0, 0)
 	e.stats.Health = 100
 	e.stats.Energy = e.stats.Energy / 2
@@ -206,6 +209,7 @@ func (s Stats) combine(s2 Stats) Stats {
 	s.BulletSpeed += s2.BulletSpeed
 	s.Energy += s2.Energy
 	s.Health += s2.Health
+	s.Defense += s2.Defense
 	s.MaxHealth += s2.MaxHealth
 	s.FireCoolDown += s2.FireCoolDown
 	s.FireRate += s2.FireRate
@@ -243,7 +247,7 @@ func (e *Entity) getAvailableUpgrades() int {
 func (e *Entity) calculateStats() {
 	e.stats_calc = e.stats
 	for _, v := range e.equipped {
-		e.stats_calc.combine(v.StatsObj)
+		e.stats_calc = e.stats_calc.combine(v.StatsObj)
 	}
 	//e.stats.NextEnergyCheckpoint = e.statsx.getNextEnergyCheckpoint()
 }
@@ -268,6 +272,12 @@ func (e *Entity) attemptToEquip(slot int) {
 		e.removeItemFromInventory(slot)
 	}
 	e.calculateStats()
+}
+
+func (e *Entity) dropEquippedItem(slot string) {
+	if e.equipped[slot].Name != "" {
+		NewItemPickupEntity(e.Position(), e.equipped[slot].Name, e.equipped[slot].ItemType, e.equipped[slot].StatsObj)
+	}
 }
 
 //------HASH MAP--------

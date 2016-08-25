@@ -21,9 +21,14 @@ func main() {
 	s := Stats{
 		Damage: 100,
 	}
-	newi := NewItemPickupEntity(Vect2{x: 3, y: 3}, "Awesome Item", "weapon", s)
-	newi.inventory[0].Rng[0] = 100
-	newi.inventory[0].Rng[1] = 101
+	newWeapon := NewItemPickupEntity(Vect2{x: 3, y: 3}, "Energy Blaster", "weapon", s)
+	newWeapon.inventory[0].Rng[0] = 100
+	newWeapon.inventory[0].Rng[1] = 101
+
+	s2 := Stats{
+		Defense: 100,
+	}
+	NewItemPickupEntity(Vect2{x: -3, y: -3}, "Cold Shoulders", "shoulder", s2)
 	//NewStatAlterItem(Vect2{x: 0, y: 0}, 100)
 
 	go listenForPackets()
