@@ -37,7 +37,9 @@ type EntityData struct {
 	Y          float64
 	Angle      float64
 	//current player data only
-	Inventory    []Item
+	Inventory []Item
+	//Equipped     map[string]Item
+	EquippedHash string
 	StatsObj     Stats
 	StatUpgrades int
 }
@@ -191,6 +193,7 @@ func processServerOutput() {
 					//send player data
 					ed.StatsObj = s
 					ed.Inventory = e.inventory
+					ed.Equipped = e.equipped
 					ed.StatUpgrades = e.getAvailableUpgrades()
 				}
 				objects = append(objects, ed)

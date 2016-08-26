@@ -41,6 +41,7 @@ type Entity struct {
 	stats_calc    Stats
 	statsUpgrades []Stats
 	equipped      map[string]Item
+	equippedHash  string
 	inventory     []Item
 	value         float64
 	//action variables
@@ -268,8 +269,18 @@ func (e *Entity) removeItemFromInventory(slot int) {
 
 func (e *Entity) attemptToEquip(slot int) {
 	if e.inventory[slot].Name != "" {
+		var itemToAddToInv Item = Item{}
+		var shouldAddItemToInv bool = false
+		if e.equipped[e.inventory[slot].ItemType].Name != "" {
+			itemToAddToInv = e.equipped[e.inventory[slot].ItemType]
+			shouldAddItemToInv = true
+		}
 		e.equipped[e.inventory[slot].ItemType] = e.inventory[slot]
 		e.removeItemFromInventory(slot)
+		if shouldAddItemToInv {
+			e.addItemToInventory(itemToAddToInv)
+		}
+		e.equippedHash = e.generateEquippedHash()
 	}
 	e.calculateStats()
 }
@@ -278,6 +289,14 @@ func (e *Entity) dropEquippedItem(slot string) {
 	if e.equipped[slot].Name != "" {
 		NewItemPickupEntity(e.Position(), e.equipped[slot].Name, e.equipped[slot].ItemType, e.equipped[slot].StatsObj)
 	}
+}
+
+func (e *Entity) generateEquippedHash() string {
+	hash := ""
+	hash = hash + e.equipped["weapon"].Name + "-"
+	hash = hash + e.equipped["head"].Name + "-"
+	hash = hash + e.equipped["shoulder"].Name + "-"
+	return hash
 }
 
 //------HASH MAP--------
