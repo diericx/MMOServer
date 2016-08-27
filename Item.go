@@ -3,15 +3,17 @@ package main
 var items = make(map[string]*Entity)
 
 type Item struct {
-	StatsObj Stats
-	Rng      []int
-	Name     string
-	ItemType string
+	StatsObj   Stats
+	Rng        []int
+	Name       string
+	ResourceId string
+	ItemType   string
 }
 
 func NewItem(name string, itemType string) Item {
 	i := Item{}
 	i.Name = name
+	i.ResourceId = "default_shoulder"
 	i.ItemType = itemType
 	i.Rng = make([]int, 2)
 	return i
