@@ -150,7 +150,10 @@ func processServerInput() {
 		} else if packet.Action == "attempt-equip" {
 			player.attemptToEquip(int(packet.X))
 		} else if packet.Action == "extended-data-request" {
-			var packet = player.createExtendedDataPacket()
+			if entities[packet.Value] == nil {
+				return
+			}
+			var packet = entities[packet.Value].createExtendedDataPacket()
 			//add packet to queue of things to send
 			var actionObj ServerActionObj
 			actionObj.entity = player
@@ -204,13 +207,14 @@ func processServerOutput() {
 				ed.X = e.body.pos.x
 				ed.Y = e.body.pos.y
 				ed.Angle = e.body.angle
+				ed.ExtendedDataHash = e.extendedDataHash
 
 				if e == p {
 					//send player data
 					//ed.StatsObj = s
 					//ed.Inventory = e.inventory
 					//ed.Equipped = e.equipped
-					ed.ExtendedDataHash = e.extendedDataHash
+
 					//ed.StatUpgrades = e.getAvailableUpgrades()
 				}
 				objects = append(objects, ed)
