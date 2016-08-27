@@ -26,8 +26,10 @@ type Stats struct {
 }
 
 type Entity struct {
-	id   uuid.UUID
-	addr *net.UDPAddr
+	//server stuff
+	id         uuid.UUID
+	addr       *net.UDPAddr
+	hasChanged bool
 	//
 	key           int
 	body          Body
@@ -37,13 +39,13 @@ type Entity struct {
 	resourceId    string
 	expireCounter int
 	//
-	stats         Stats
-	stats_calc    Stats
-	statsUpgrades []Stats
-	equipped      map[string]Item
-	equippedHash  string
-	inventory     []Item
-	value         float64
+	stats            Stats
+	stats_calc       Stats
+	statsUpgrades    []Stats
+	equipped         map[string]Item
+	extendedDataHash string
+	inventory        []Item
+	value            float64
 	//action variables
 	shooting bool
 	//user defined functions
@@ -81,6 +83,8 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.equipped = NewDefaultEquippedArray()
 	newEntity.body.points = make([]Vect2, 4)
 	newEntity.expireCounter = -1
+	//gen equipped hash
+	newEntity.extendedDataHash = newEntity.generateExtendedDataHash()
 	//calculate stats from equipped items
 	newEntity.calculateStats()
 
@@ -258,6 +262,7 @@ func (e *Entity) addItemToInventory(item Item) {
 	for i, currentItem := range e.inventory {
 		if currentItem.Name == "" {
 			e.inventory[i] = item
+			e.extendedDataHash = e.generateExtendedDataHash()
 			return
 		}
 	}
@@ -280,7 +285,7 @@ func (e *Entity) attemptToEquip(slot int) {
 		if shouldAddItemToInv {
 			e.addItemToInventory(itemToAddToInv)
 		}
-		e.equippedHash = e.generateEquippedHash()
+		e.extendedDataHash = e.generateExtendedDataHash()
 	}
 	e.calculateStats()
 }
@@ -291,11 +296,19 @@ func (e *Entity) dropEquippedItem(slot string) {
 	}
 }
 
-func (e *Entity) generateEquippedHash() string {
+func (e *Entity) generateExtendedDataHash() string {
 	hash := ""
 	hash = hash + e.equipped["weapon"].Name + "-"
 	hash = hash + e.equipped["head"].Name + "-"
 	hash = hash + e.equipped["shoulder"].Name + "-"
+	for _, v := range e.inventory {
+		hash = hash + v.Name + "-"
+	}
+	hash = hash + FloatToString(e.stats.Damage) + "-"
+	hash = hash + string(e.stats.Defense) + "-"
+	hash = hash + string(e.stats.Energy) + "-"
+	hash = hash + string(e.stats.MaxHealth) + "-"
+	hash = hash + FloatToString(e.stats.BulletSpeed) + "-"
 	return hash
 }
 

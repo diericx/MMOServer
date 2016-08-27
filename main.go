@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -15,9 +16,10 @@ func main() {
 	fillEnergyCheckpointArray()
 
 	//create some entities
-	// for i := 0; i < 10; i++ {
+	// for i := 0; i < 20; i++ {
 	// 	NewStatAlterItemEntity(Vect2{x: float64(i * 2), y: 0}, 100)
 	// }
+
 	s := Stats{
 		Damage: 100,
 	}
@@ -58,4 +60,9 @@ func (flw ForLoopWaiter) waitForTime(maxMilliToWait float64) {
 	if deltaMilli > 0 {
 		time.Sleep(time.Duration(deltaMilli) * time.Millisecond)
 	}
+}
+
+func FloatToString(input_num float64) string {
+	// to convert a float number to a string
+	return strconv.FormatFloat(input_num, 'f', 6, 64)
 }

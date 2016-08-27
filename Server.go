@@ -21,9 +21,24 @@ type ReceivePacket struct {
 	Shooting bool
 }
 
-type SendPacket struct {
+type UpdatePacket struct {
+	Action          string
 	CurrentPlayerId string
 	Objects         []EntityData
+}
+
+type EntityExtendedDataPacket struct {
+	Action string
+	Id     string
+	EED    EntityExtendedData
+}
+
+type EntityExtendedData struct {
+	ExtendedDataHash string
+	Equipped         map[string]Item
+	Inventory        []Item
+	StatsObj         Stats
+	StatUpgrades     int
 }
 
 type EntityData struct {
@@ -36,12 +51,8 @@ type EntityData struct {
 	X          float64
 	Y          float64
 	Angle      float64
-	//current player data only
-	Inventory []Item
 	//Equipped     map[string]Item
-	EquippedHash string
-	StatsObj     Stats
-	StatUpgrades int
+	ExtendedDataHash string
 }
 
 type ServerActionObj struct {
@@ -138,6 +149,14 @@ func processServerInput() {
 			player.shooting = serverInputObj.receivePacketObj.Shooting
 		} else if packet.Action == "attempt-equip" {
 			player.attemptToEquip(int(packet.X))
+		} else if packet.Action == "extended-data-request" {
+			var packet = player.createExtendedDataPacket()
+			//add packet to queue of things to send
+			var actionObj ServerActionObj
+			actionObj.entity = player
+			actionObj.sendPacketBytes = packet
+			actionObj.addr = player.addr
+			serverOutput <- actionObj
 		} else if packet.Action == "upgradeHealth" {
 			if player.getAvailableUpgrades() > 0 {
 				s := Stats{}
@@ -187,20 +206,19 @@ func processServerOutput() {
 				ed.Angle = e.body.angle
 
 				if e == p {
-					//edit stats
-					s := e.stats
-					s.NextEnergyCheckpoint = energyCheckpoints[s.NextEnergyCheckpoint]
 					//send player data
-					ed.StatsObj = s
-					ed.Inventory = e.inventory
-					ed.Equipped = e.equipped
-					ed.StatUpgrades = e.getAvailableUpgrades()
+					//ed.StatsObj = s
+					//ed.Inventory = e.inventory
+					//ed.Equipped = e.equipped
+					ed.ExtendedDataHash = e.extendedDataHash
+					//ed.StatUpgrades = e.getAvailableUpgrades()
 				}
 				objects = append(objects, ed)
 			}
 		}
 
-		packetObj := SendPacket{
+		packetObj := UpdatePacket{
+			Action:          "update",
 			CurrentPlayerId: p.id.String(),
 			Objects:         objects,
 		}
@@ -220,6 +238,33 @@ func processServerOutput() {
 		serverOutput <- actionObj
 
 	}
+}
+
+func (e *Entity) createExtendedDataPacket() []byte {
+	//edit stats
+	s := e.stats
+	s.NextEnergyCheckpoint = energyCheckpoints[s.NextEnergyCheckpoint]
+
+	extendedData := EntityExtendedData{
+		ExtendedDataHash: e.extendedDataHash,
+		Equipped:         e.equipped,
+		Inventory:        e.inventory,
+		StatsObj:         s,
+		StatUpgrades:     e.getAvailableUpgrades(),
+	}
+
+	packetObj := EntityExtendedDataPacket{
+		Action: "extended-data",
+		Id:     e.id.String(),
+		EED:    extendedData,
+	}
+
+	var packet []byte
+	enc := codec.NewEncoder(w, &mh)
+	enc = codec.NewEncoderBytes(&packet, &mh)
+	enc.Encode(packetObj)
+
+	return packet
 }
 
 func sendServerOutput() {
