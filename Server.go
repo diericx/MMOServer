@@ -93,6 +93,7 @@ func listenForPackets() {
 	for {
 		n, addr, err := serverConn.ReadFromUDP(buf)
 		CheckError(err)
+		println(addr.String())
 
 		p := players[addr.String()]
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"hash/fnv"
 	"math/rand"
 	"strconv"
 	"time"
@@ -65,4 +66,10 @@ func (flw ForLoopWaiter) waitForTime(maxMilliToWait float64) {
 func FloatToString(input_num float64) string {
 	// to convert a float number to a string
 	return strconv.FormatFloat(input_num, 'f', 6, 64)
+}
+
+func Hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
 }
