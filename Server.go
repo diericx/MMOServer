@@ -34,7 +34,7 @@ type EntityExtendedDataPacket struct {
 }
 
 type EntityExtendedData struct {
-	ExtendedDataHash string
+	ExtendedDataHash uint32
 	Equipped         map[string]Item
 	Inventory        []Item
 	StatsObj         Stats
@@ -52,7 +52,7 @@ type EntityData struct {
 	Y          float64
 	Angle      float64
 	//Equipped     map[string]Item
-	ExtendedDataHash string
+	ExtendedDataHash uint32
 }
 
 type ServerActionObj struct {

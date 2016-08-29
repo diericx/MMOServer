@@ -43,7 +43,7 @@ type Entity struct {
 	stats_calc       Stats
 	statsUpgrades    []Stats
 	equipped         map[string]Item
-	extendedDataHash string
+	extendedDataHash uint32
 	inventory        []Item
 	value            float64
 	//action variables
@@ -296,7 +296,7 @@ func (e *Entity) dropEquippedItem(slot string) {
 	}
 }
 
-func (e *Entity) generateExtendedDataHash() string {
+func (e *Entity) generateExtendedDataHash() uint32 {
 	hash := ""
 	hash = hash + e.equipped["weapon"].Name + "-"
 	hash = hash + e.equipped["head"].Name + "-"
@@ -309,7 +309,7 @@ func (e *Entity) generateExtendedDataHash() string {
 	hash = hash + string(e.stats.Energy) + "-"
 	hash = hash + string(e.stats.MaxHealth) + "-"
 	hash = hash + FloatToString(e.stats.BulletSpeed) + "-"
-	return hash
+	return Hash(hash)
 }
 
 //------HASH MAP--------
