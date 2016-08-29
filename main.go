@@ -17,8 +17,8 @@ func main() {
 	fillEnergyCheckpointArray()
 
 	//create some entities
-	// for i := 0; i < 20; i++ {
-	// 	NewStatAlterItemEntity(Vect2{x: float64(i * 2), y: 0}, 100)
+	// for i := 0; i < 100; i++ {
+	// 	NewStatAlterItemEntity(Vect2{x: math.Cos(float64(i)) * 5, y: math.Sin(float64(i)) * 5}, 100)
 	// }
 
 	s := Stats{

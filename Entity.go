@@ -3,8 +3,7 @@ package main
 import (
 	"math"
 	"net"
-
-	"github.com/satori/go.uuid"
+	"strconv"
 )
 
 type Vect2 struct {
@@ -27,7 +26,7 @@ type Stats struct {
 
 type Entity struct {
 	//server stuff
-	id         uuid.UUID
+	id         string
 	addr       *net.UDPAddr
 	hasChanged bool
 	//
@@ -56,6 +55,7 @@ type Entity struct {
 }
 
 //holding array
+var entityIdIncrement int = 0
 var entities = make(map[string]*Entity)
 
 //hash map array
@@ -73,7 +73,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity := Entity{}
 	newEntity.active = true
 
-	newEntity.id = uuid.NewV4()
+	newEntity.id = strconv.Itoa(entityIdIncrement)
 	newEntity.resourceId = "default_entity"
 	newEntity.body.pos = pos
 	newEntity.body.size = size
@@ -90,7 +90,9 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 
 	newEntity.addToCell(newEntity.calcKey())
 
-	entities[newEntity.id.String()] = &newEntity
+	entities[newEntity.id] = &newEntity
+
+	entityIdIncrement += 1
 
 	return &newEntity
 }
@@ -186,11 +188,11 @@ func (e *Entity) RemoveSelf() {
 		e.onRemove()
 	}
 
-	delete(entities, e.id.String())
+	delete(entities, e.id)
 	delete(players, e.addr.String())
-	delete(bullets, e.id.String())
-	delete(items, e.id.String())
-	removeFromMap(e.key, e.id.String())
+	delete(bullets, e.id)
+	delete(items, e.id)
+	removeFromMap(e.key, e.id)
 }
 
 //------Helper functions with body--------
@@ -329,7 +331,7 @@ func (e *Entity) addToCell(c int) {
 		m[c] = make(map[string]*Entity)
 	}
 
-	m[c][e.id.String()] = e
+	m[c][e.id] = e
 	e.key = c
 }
 
@@ -343,8 +345,8 @@ func (e *Entity) updateEntityCellData() {
 	}
 
 	//remove entity from old array
-	if m[oldKey][e.id.String()] != nil {
-		removeFromMap(oldKey, e.id.String())
+	if m[oldKey][e.id] != nil {
+		removeFromMap(oldKey, e.id)
 	}
 
 	//add to new array (cell)

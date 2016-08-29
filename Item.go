@@ -25,7 +25,7 @@ func NewItemEntity(pos Vect2, size Vect2) *Entity {
 	e.stats = Stats{}
 	//funcs
 
-	items[e.id.String()] = e
+	items[e.id] = e
 
 	return e
 }

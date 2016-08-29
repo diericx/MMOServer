@@ -13,7 +13,7 @@ func NewBullet(pos Vect2, size Vect2, origin *Entity) *Entity {
 	b.value = origin.stats_calc.Damage * float64(rnGenerator(origin.equipped["weapon"].Rng))
 	b.expireCounter = 30
 
-	bullets[b.id.String()] = b
+	bullets[b.id] = b
 
 	return b
 }

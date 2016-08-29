@@ -42,16 +42,14 @@ type EntityExtendedData struct {
 }
 
 type EntityData struct {
-	Id         string
-	Username   string
-	Type       string
-	ResourceId string
-	Energy     int
-	Health     float64
-	X          float64
-	Y          float64
-	Angle      float64
-	//Equipped     map[string]Item
+	Id               string
+	Type             string
+	ResourceId       string
+	Energy           int
+	Health           float32
+	X                float32
+	Y                float32
+	Angle            float32
 	ExtendedDataHash uint32
 }
 
@@ -196,34 +194,25 @@ func processServerOutput() {
 		var keys = p.getNearbyKeys(2)
 
 		for _, key := range keys {
-			//println("Key: ", key)
 			for _, e := range m[key] {
 				var ed EntityData
-				ed.Id = e.id.String()
-				ed.Energy = int(e.stats.Energy)
-				ed.ResourceId = e.resourceId
+				ed.Id = e.id
 				ed.Type = e.entityType
-				ed.Health = e.Health()
-				ed.X = e.body.pos.x
-				ed.Y = e.body.pos.y
-				ed.Angle = e.body.angle
+				ed.ResourceId = e.resourceId
+				ed.Energy = int(e.stats.Energy)
+				ed.Health = float32(e.Health())
+				ed.X = float32(e.body.pos.x)
+				ed.Y = float32(e.body.pos.y)
+				ed.Angle = float32(e.body.angle)
 				ed.ExtendedDataHash = e.extendedDataHash
 
-				if e == p {
-					//send player data
-					//ed.StatsObj = s
-					//ed.Inventory = e.inventory
-					//ed.Equipped = e.equipped
-
-					//ed.StatUpgrades = e.getAvailableUpgrades()
-				}
 				objects = append(objects, ed)
 			}
 		}
 
 		packetObj := UpdatePacket{
 			Action:          "update",
-			CurrentPlayerId: p.id.String(),
+			CurrentPlayerId: p.id,
 			Objects:         objects,
 		}
 
@@ -259,7 +248,7 @@ func (e *Entity) createExtendedDataPacket() []byte {
 
 	packetObj := EntityExtendedDataPacket{
 		Action: "extended-data",
-		Id:     e.id.String(),
+		Id:     e.id,
 		EED:    extendedData,
 	}
 
