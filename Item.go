@@ -1,6 +1,13 @@
 package main
 
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+)
+
 var items = make(map[string]*Entity)
+var itemData map[string]interface{}
 
 type Item struct {
 	StatsObj   Stats
@@ -22,7 +29,7 @@ func NewItem(name string, itemType string) Item {
 func NewItemEntity(pos Vect2, size Vect2) *Entity {
 	e := NewEntity(pos, size)
 	e.entityType = "item"
-	e.stats = Stats{}
+	e.stats_calc1 = Stats{}
 	//funcs
 
 	items[e.id] = e
@@ -34,18 +41,19 @@ func NewStatAlterItemEntity(pos Vect2, value int) *Entity {
 	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
 	e.entityType = "item-stat-alter"
 	e.resourceId = "glowing_orb"
-	e.stats.Energy = value
+	e.stats_calc1.Energy = value
 	e.onCollide = e.onItemStatAlterCollide
 	return e
 }
 
-func NewItemPickupEntity(pos Vect2, name string, itemType string, s Stats) *Entity {
+func NewItemPickupEntity(pos Vect2, name string, itemType string, resourceId string, s Stats) *Entity {
 	e := NewItemEntity(pos, Vect2{x: 1, y: 1})
-	e.inventory[0] = NewItem(name, itemType)
-	e.inventory[0].StatsObj = s
 	e.entityType = "item-pickup"
-	e.resourceId = "default_item"
+	e.resourceId = resourceId
 	e.onCollide = e.onItemPickupCollide
+	e.inventory[0] = NewItem(name, itemType)
+	e.inventory[0].ResourceId = resourceId
+	e.inventory[0].StatsObj = s
 	return e
 }
 
@@ -65,4 +73,25 @@ func (e *Entity) onItemStatAlterCollide(other *Entity) {
 func (e *Entity) onItemPickupCollide(other *Entity) {
 	e.active = false
 	e.RemoveSelf()
+}
+
+func loadItemData() {
+	file, err := ioutil.ReadFile("item-data.txt")
+	if err != nil {
+		//if there is an error print it
+		fmt.Println(err)
+	} else {
+		//else, do shit
+		//unmarshal the json
+		err := json.Unmarshal(file, &itemData)
+		if err != nil {
+			//if there is an error, print
+			fmt.Println(err)
+		} else {
+			//if not, do shit
+			fmt.Println(itemData)
+			//num := data["H1"].(map[string]interface{})
+			//fmt.Println(num["healthCap"])
+		}
+	}
 }

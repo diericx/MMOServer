@@ -33,34 +33,36 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 func (e *Entity) playerShoot() {
 	var b = NewBullet(e.body.pos, Vect2{x: 0.5, y: 1}, e)
 	b.body.angle = e.body.angle + (math.Pi / 2)
-	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats_calc.BulletSpeed, y: math.Sin(b.body.angle) * e.stats_calc.BulletSpeed}
+	b.body.vel = Vect2{x: math.Cos(b.body.angle) * e.stats_calc1.BulletSpeed, y: math.Sin(b.body.angle) * e.stats_calc1.BulletSpeed}
 }
 
 func (e *Entity) playerUpdateFunc() {
 	e.detectCollisions()
 
-	if e.stats.FireCoolDown >= 0 {
-		e.stats.FireCoolDown -= 1
+	if e.stats_calc1.FireCoolDown >= 0 {
+		e.stats_calc1.FireCoolDown -= 1
 	}
 
 	if e.shooting {
-		if e.stats.FireCoolDown <= 0 {
+		if e.stats_calc1.FireCoolDown <= 0 {
 			//if able to shoot, call shoot function
 			e.playerShoot()
-			e.stats.FireCoolDown = e.stats.FireRate
+			e.stats_calc1.FireCoolDown = e.stats_calc1.FireRate
 		}
 	}
 }
 
 func (e *Entity) playerOnCollide(other *Entity) {
 	if other.entityType == "bullet" {
-		var damageToTake = other.value - float64(e.stats_calc.Defense)
+		println("collided with bullet!")
+		var damageToTake = other.value - float64(e.stats_calc1.Defense)
 		if damageToTake <= 0 {
 			damageToTake = 1
 		}
-		e.stats.Health -= damageToTake
+		e.stats_calc1.Health -= damageToTake
 	} else if other.entityType == "item-stat-alter" {
-		e.stats = e.stats.combine(other.stats)
+		e.stats_calc1 = e.stats_calc1.add(other.stats_calc1)
+		e.extendedDataHash = e.generateExtendedDataHash()
 	} else if other.entityType == "item-pickup" {
 		e.addItemToInventory(other.inventory[0])
 	}

@@ -139,8 +139,8 @@ func processServerInput() {
 			movY += math.Sin(angleInRadRight) * float64(packet.X)
 
 			//edit body velocity
-			player.body.vel.x = movX * player.stats.Speed
-			player.body.vel.y = movY * player.stats.Speed
+			player.body.vel.x = movX * player.stats_calc1.Speed
+			player.body.vel.y = movY * player.stats_calc1.Speed
 
 			//set angle and shooting variable
 			player.body.angle = angleInRad
@@ -162,14 +162,14 @@ func processServerInput() {
 			if player.getAvailableUpgrades() > 0 {
 				s := Stats{}
 				s.MaxHealth = HEALTH_MOD
-				player.stats = player.stats.combine(s)
+				player.stats_base = player.stats_base.add(s)
 				player.statsUpgrades = append(player.statsUpgrades, s)
 			}
 		} else if packet.Action == "upgradeSpeed" {
 			if player.getAvailableUpgrades() > 0 {
 				s := Stats{}
 				s.Speed = SPEED_MOD
-				player.stats = player.stats.combine(s)
+				player.stats_base = player.stats_base.add(s)
 				player.statsUpgrades = append(player.statsUpgrades, s)
 			}
 		} else if packet.Action == "upgradeFireRate" {
@@ -177,7 +177,7 @@ func processServerInput() {
 				println("UP FIRE RATE")
 				s := Stats{}
 				s.FireRate = FIRERATE_MOD
-				player.stats = player.stats.combine(s)
+				player.stats_base = player.stats_base.add(s)
 				player.statsUpgrades = append(player.statsUpgrades, s)
 			}
 		}
@@ -199,7 +199,7 @@ func processServerOutput() {
 				ed.Id = e.id
 				ed.Type = e.entityType
 				ed.ResourceId = e.resourceId
-				ed.Energy = int(e.stats.Energy)
+				//ed.Energy = int(e.stats_calc1.Energy)
 				ed.Health = float32(e.Health())
 				ed.X = float32(e.body.pos.x)
 				ed.Y = float32(e.body.pos.y)
@@ -235,8 +235,9 @@ func processServerOutput() {
 
 func (e *Entity) createExtendedDataPacket() []byte {
 	//edit stats
-	s := e.stats
-	s.NextEnergyCheckpoint = energyCheckpoints[s.NextEnergyCheckpoint]
+	s := e.stats_base.add(e.stats_gear)
+	s.Energy = e.stats_calc1.Energy
+	s.NextEnergyCheckpoint = energyCheckpoints[e.stats_calc1.NextEnergyCheckpoint]
 
 	extendedData := EntityExtendedData{
 		ExtendedDataHash: e.extendedDataHash,

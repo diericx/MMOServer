@@ -1,0 +1,30 @@
+{
+  "T1":{
+    "min": 0,
+    "max": 1000,
+    "items":{
+
+      "shoulder":{
+
+        "Cold Shoulders":{
+          "defense": {
+            "min": 1,
+            "max": 5
+          }
+        }
+
+      },
+
+      "weapon":{
+
+        "Energy Blaster": {
+          "damage": {
+            "min": 1,
+            "max": 5
+          }
+        }
+
+      }
+    }
+  }
+}

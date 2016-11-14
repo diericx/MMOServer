@@ -10,7 +10,7 @@ func NewBullet(pos Vect2, size Vect2, origin *Entity) *Entity {
 	b.resourceId = "default_bullet"
 	b.onUpdate = b.bulletUpdateFunc
 	b.onCollide = b.bulletCollideFunc
-	b.value = origin.stats_calc.Damage * float64(rnGenerator(origin.equipped["weapon"].Rng))
+	b.value = origin.stats_calc1.Damage * float64(rnGenerator(origin.equipped["weapon"].Rng))
 	b.expireCounter = 30
 
 	bullets[b.id] = b
