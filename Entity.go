@@ -2,7 +2,6 @@ package main
 
 import (
 	"math"
-	"math/rand"
 	"net"
 	"strconv"
 )
@@ -39,19 +38,7 @@ type Entity struct {
 	resourceId    string
 	expireCounter int
 	//
-	//base stats (integers such as 1, 2, 3)
-	stats_base Stats
-	//stats that the gear increases
-	stats_gear Stats
-	//the stats calculated into real values (100, 200, 1000, etc.)
-	stats_calc1      Stats
-	statsUpgrades    []Stats
-	equipped         map[string]Item
-	extendedDataHash uint32
-	inventory        []Item
-	value            float64
-	//action variables
-	shooting bool
+	stats Stats
 	//user defined functions
 	onUpdate  func()
 	onCollide func(other *Entity)
@@ -91,17 +78,10 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.resourceId = "default_entity"
 	newEntity.body.pos = pos
 	newEntity.body.size = size
-	newEntity.stats_base = NewDefaultBaseStats()
-	newEntity.stats_gear = Stats{}
-	newEntity.statsUpgrades = []Stats{}
-	newEntity.calculateStats()
-	newEntity.stats_calc1.Health = 100
-	newEntity.inventory = make([]Item, INVENTORY_MAX)
-	newEntity.equipped = NewDefaultEquippedArray()
+	newEntity.stats = NewDefaultBaseStats()
 	newEntity.body.points = make([]Vect2, 4)
 	newEntity.expireCounter = -1
 	//gen equipped hash
-	newEntity.extendedDataHash = newEntity.generateExtendedDataHash()
 
 	newEntity.addToCell(newEntity.calcKey())
 
@@ -133,13 +113,6 @@ func updateEntities() {
 		if p.onUpdate != nil {
 			p.onUpdate()
 			p._onUpdate()
-		}
-	}
-
-	for _, b := range bullets {
-		if b.onUpdate != nil {
-			b.onUpdate()
-			b._onUpdate()
 		}
 	}
 
@@ -181,22 +154,10 @@ func (e *Entity) distanceTo(e2 *Entity) float64 {
 	return math.Sqrt((deltaX * deltaX) + (deltaY * deltaY))
 }
 
-func (e *Entity) dropEnergyItem() {
-	var energyToDrop = e.stats_calc1.Energy / 2
-	if energyToDrop < 100 {
-		energyToDrop = 100
-	}
-	NewStatAlterItemEntity(e.Position(), energyToDrop)
-}
-
 func (e *Entity) Die() {
-	e.dropEnergyItem()
-	e.dropEquippedItem("weapon")
-	e.dropEquippedItem("shoulder")
 	e.SetPosition(0, 0)
-	e.stats_calc1.Health = 100
-	e.stats_calc1.Energy = e.stats_calc1.Energy / 2
-	e.stats_calc1.NextEnergyCheckpoint = e.stats_calc1.getNextEnergyCheckpoint()
+	e.stats.Health = 100
+	e.stats.Energy = e.stats.Energy / 2
 }
 
 func (e *Entity) RemoveSelf() {
@@ -206,8 +167,6 @@ func (e *Entity) RemoveSelf() {
 
 	delete(entities, e.id)
 	delete(players, e.addr.String())
-	delete(bullets, e.id)
-	delete(items, e.id)
 	removeFromMap(e.key, e.id)
 }
 
@@ -224,7 +183,7 @@ func (e *Entity) Position() Vect2 {
 }
 
 func (e *Entity) Health() float64 {
-	return e.stats_calc1.Health
+	return e.stats.Health
 }
 
 //stats
@@ -236,117 +195,7 @@ func (s Stats) add(s2 Stats) Stats {
 	s.MaxHealth += s2.MaxHealth
 	s.FireRate += s2.FireRate
 	s.Speed += s2.Speed
-
-	//make sure the energy checkpoint is correct
-	s.NextEnergyCheckpoint = s.getNextEnergyCheckpoint()
-
 	return s
-}
-
-func (s Stats) mul(s2 Stats) Stats {
-	s.BulletSpeed *= s2.BulletSpeed
-	s.Energy *= s2.Energy
-	s.Health *= s2.Health
-	s.Defense *= s2.Defense
-	s.MaxHealth *= s2.MaxHealth
-	s.FireRate *= s2.FireRate
-	s.Speed *= s2.Speed
-
-	//make sure the energy checkpoint is correct
-	s.NextEnergyCheckpoint = s.getNextEnergyCheckpoint()
-
-	return s
-}
-
-func fillEnergyCheckpointArray() {
-	var checkpoint int = 100
-	var i float64
-	for i = 0; i < 20; i++ {
-		checkpoint *= 3
-		//checkpoint = int(float64(checkpoint) + (float64(150) * math.Pow(2, i)))
-		energyCheckpoints = append(energyCheckpoints, checkpoint)
-	}
-}
-
-func (s Stats) getNextEnergyCheckpoint() int {
-	for i, v := range energyCheckpoints {
-		if v > s.Energy {
-			return i
-		}
-	}
-	return 0
-}
-
-func (e *Entity) getAvailableUpgrades() int {
-	return (e.stats_calc1.NextEnergyCheckpoint) - len(e.statsUpgrades)
-}
-
-func (e *Entity) calculateStats() {
-	e.stats_gear = Stats{}
-	for _, v := range e.equipped {
-		e.stats_gear = e.stats_gear.add(v.StatsObj)
-	}
-
-	e.stats_calc1 = e.stats_base.add(e.stats_gear).mul(STAT_CALC_MOD)
-
-}
-
-//Inventory
-func (e *Entity) addItemToInventory(item Item) {
-	for i, currentItem := range e.inventory {
-		if currentItem.Name == "" {
-			e.inventory[i] = item
-			e.extendedDataHash = e.generateExtendedDataHash()
-			return
-		}
-	}
-}
-
-func (e *Entity) removeItemFromInventory(slot int) {
-	e.inventory[slot] = Item{}
-}
-
-func (e *Entity) attemptToEquip(slot int) {
-	if e.inventory[slot].Name != "" {
-		var itemToAddToInv Item = Item{}
-		var shouldAddItemToInv bool = false
-		if e.equipped[e.inventory[slot].ItemType].Name != "" {
-			itemToAddToInv = e.equipped[e.inventory[slot].ItemType]
-			shouldAddItemToInv = true
-		}
-		e.equipped[e.inventory[slot].ItemType] = e.inventory[slot]
-		e.removeItemFromInventory(slot)
-		if shouldAddItemToInv {
-			e.addItemToInventory(itemToAddToInv)
-		}
-		e.extendedDataHash = e.generateExtendedDataHash()
-	}
-	e.calculateStats()
-}
-
-func (e *Entity) dropEquippedItem(slot string) {
-	if e.equipped[slot].Name != "" {
-		var a = rand.Float64() * math.Pi
-		var dist float64 = 2
-		var p = Vect2{x: (math.Cos(a) * dist) + e.Position().x, y: (math.Sin(a) * dist) + e.Position().y}
-		NewItemPickupEntity(p, e.equipped[slot].Name, e.equipped[slot].ItemType, e.equipped[slot].ResourceId, e.equipped[slot].StatsObj)
-	}
-}
-
-func (e *Entity) generateExtendedDataHash() uint32 {
-	hash := ""
-	hash = hash + e.equipped["weapon"].Name + "-"
-	hash = hash + e.equipped["head"].Name + "-"
-	hash = hash + e.equipped["shoulder"].Name + "-"
-	for _, v := range e.inventory {
-		hash = hash + v.Name + "-"
-	}
-	hash = hash + FloatToString(e.stats_calc1.Damage) + "-"
-	hash = hash + string(e.stats_calc1.Defense) + "-"
-	hash = hash + string(e.stats_calc1.Energy) + "-"
-	hash = hash + string(e.stats_calc1.MaxHealth) + "-"
-	hash = hash + FloatToString(e.stats_calc1.BulletSpeed) + "-"
-	return Hash(hash)
 }
 
 //------HASH MAP--------

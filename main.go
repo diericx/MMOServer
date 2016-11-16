@@ -2,7 +2,6 @@ package main
 
 import (
 	"hash/fnv"
-	"math"
 	"math/rand"
 	"strconv"
 	"time"
@@ -14,27 +13,6 @@ var r1 = rand.New(s1)
 func main() {
 
 	var FRAME_WAIT_TIME float64 = 33
-
-	fillEnergyCheckpointArray()
-	loadItemData()
-
-	//create some entities
-	for i := 0; i < 20; i++ {
-		NewStatAlterItemEntity(Vect2{x: math.Cos(float64(i)) * 5, y: math.Sin(float64(i)) * 5}, 100)
-	}
-
-	s := Stats{
-		Damage: 100,
-	}
-	newWeapon := NewItemPickupEntity(Vect2{x: 3, y: 3}, "Energy Blaster", "weapon", "default_item", s)
-	newWeapon.inventory[0].Rng[0] = 100
-	newWeapon.inventory[0].Rng[1] = 101
-
-	s2 := Stats{
-		Defense: 100,
-	}
-	NewItemPickupEntity(Vect2{x: -3, y: -3}, "Cold Shoulders", "shoulder", "shoulder1", s2)
-	//NewStatAlterItem(Vect2{x: 0, y: 0}, 100)
 
 	go listenForPackets()
 
