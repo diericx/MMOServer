@@ -2,6 +2,7 @@ package main
 
 type Body struct {
 	pos        Vect2
+	targetPos  Vect2
 	size       Vect2
 	vel        Vect2
 	continuous bool

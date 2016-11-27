@@ -14,6 +14,10 @@ func main() {
 
 	var FRAME_WAIT_TIME float64 = 33
 
+	for i := 0; i < 50; i++ {
+		NewEntity(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
+	}
+
 	go listenForPackets()
 
 	for {

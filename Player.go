@@ -1,8 +1,15 @@
 package main
 
 import (
+	"math/rand"
 	"net"
 )
+
+type Player struct {
+	//server stuff
+	id   string
+	addr *net.UDPAddr
+}
 
 var players = make(map[string]*Entity)
 
@@ -17,13 +24,17 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
 	p.addr = addr
 	p.entityType = "player"
-	p.resourceId = "default_player"
+	p.resourceId = "empty"
 	//funcs
 	p.onUpdate = p.playerUpdateFunc
 	p.onCollide = p.playerOnCollide
 	//expire
 	p.expireCounter = PLAYER_EXPIRE_TIME
-
+	//create new planet for the player
+	newPlanet := NewEntity(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
+	newPlanet.origin = p
+	p.body.targetPos = Vect2{newPlanet.body.pos.x, newPlanet.body.pos.y}
+	p.possessedEntities = append(p.possessedEntities, newPlanet)
 	players[addr.String()] = p
 
 	return p

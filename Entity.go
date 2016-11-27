@@ -12,16 +12,7 @@ type Vect2 struct {
 }
 
 type Stats struct {
-	Health               float64
-	Defense              int
-	MaxHealth            int
-	FireRate             int
-	FireCoolDown         int
-	Speed                float64
-	BulletSpeed          float64
-	Damage               float64
-	Energy               int
-	NextEnergyCheckpoint int
+	Count int
 }
 
 type Entity struct {
@@ -38,7 +29,9 @@ type Entity struct {
 	resourceId    string
 	expireCounter int
 	//
-	stats Stats
+	stats             Stats
+	selectedEntities  []string
+	possessedEntities []*Entity
 	//user defined functions
 	onUpdate  func()
 	onCollide func(other *Entity)
@@ -56,15 +49,6 @@ var m = make(map[int]map[string]*Entity)
 //channel for entities to remove
 var entitiesToRemove = make(chan ServerActionObj, 1000)
 
-var STAT_CALC_MOD = Stats{
-	MaxHealth:   25,
-	Defense:     1,
-	FireRate:    5,
-	Speed:       0.2,
-	BulletSpeed: 1,
-	Damage:      1,
-}
-
 //hash cell size
 var CELL_SIZE = 15
 var INVENTORY_MAX = 10
@@ -75,7 +59,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity.active = true
 
 	newEntity.id = strconv.Itoa(entityIdIncrement)
-	newEntity.resourceId = "default_entity"
+	newEntity.resourceId = "default_planet"
 	newEntity.body.pos = pos
 	newEntity.body.size = size
 	newEntity.stats = NewDefaultBaseStats()
@@ -95,15 +79,7 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 //default stat values
 func NewDefaultBaseStats() Stats {
 	stats := Stats{
-		Health:               100,
-		MaxHealth:            4,
-		Defense:              1,
-		FireRate:             3,
-		FireCoolDown:         3,
-		Speed:                1,
-		BulletSpeed:          1,
-		Damage:               1,
-		NextEnergyCheckpoint: 0,
+		Count: 0,
 	}
 	return stats
 }
@@ -141,8 +117,8 @@ func (e *Entity) _onUpdate() {
 	e.body.pos.x += e.body.vel.x
 	e.body.pos.y += e.body.vel.y
 
-	if e.Health() <= 0 {
-		e.Die()
+	if e.stats.Count <= 0 {
+		e.origin = nil
 	}
 }
 
@@ -156,8 +132,6 @@ func (e *Entity) distanceTo(e2 *Entity) float64 {
 
 func (e *Entity) Die() {
 	e.SetPosition(0, 0)
-	e.stats.Health = 100
-	e.stats.Energy = e.stats.Energy / 2
 }
 
 func (e *Entity) RemoveSelf() {
@@ -182,19 +156,9 @@ func (e *Entity) Position() Vect2 {
 	return e.body.pos
 }
 
-func (e *Entity) Health() float64 {
-	return e.stats.Health
-}
-
 //stats
 func (s Stats) add(s2 Stats) Stats {
-	s.BulletSpeed += s2.BulletSpeed
-	s.Energy += s2.Energy
-	s.Health += s2.Health
-	s.Defense += s2.Defense
-	s.MaxHealth += s2.MaxHealth
-	s.FireRate += s2.FireRate
-	s.Speed += s2.Speed
+
 	return s
 }
 

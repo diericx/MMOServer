@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"os"
 
@@ -16,6 +15,7 @@ type ReceivePacket struct {
 	Uid      string
 	Value    string
 	Angle    float64
+	IDs      []string
 	X        int
 	Y        int
 	Shooting bool
@@ -41,10 +41,11 @@ type EntityExtendedData struct {
 
 type EntityData struct {
 	Id               string
+	OriginId         string
 	Type             string
 	ResourceId       string
 	Energy           int
-	Health           float32
+	Count            int
 	X                float32
 	Y                float32
 	Angle            float32
@@ -119,29 +120,25 @@ func processServerInput() {
 		var player = serverInputObj.entity
 
 		if packet.Action == "update" {
-			var movX float64 = 0
-			var movY float64 = 0
 
 			//update expire
 			player.expireCounter = PLAYER_EXPIRE_TIME
 
-			//calculate angles
-			angleInRad := -((packet.Angle * math.Pi) / 180)
-			angleInRadForward := angleInRad + (math.Pi / 2)
-			angleInRadRight := angleInRad
+			//var packX = float64(packet.X)
+			//var packY = float64(packet.Y)
+			//if math.Abs(packX-player.body.pos.x) < 2 && math.Abs(packY-player.body.pos.y) < 2 {
+			player.body.pos.x = float64(packet.X)
+			player.body.pos.y = float64(packet.Y)
+			//}
 
-			//calculate velocity
-			movX += math.Cos(angleInRadForward) * float64(packet.Y)
-			movY += math.Sin(angleInRadForward) * float64(packet.Y)
-			movX += math.Cos(angleInRadRight) * float64(packet.X)
-			movY += math.Sin(angleInRadRight) * float64(packet.X)
-
-			//edit body velocity
-			player.body.vel.x = movX * player.stats.Speed
-			player.body.vel.y = movY * player.stats.Speed
-
-			//set angle and shooting variable
-			player.body.angle = angleInRad
+		} else if packet.Action == "select" {
+			player.selectedEntities = []string{}
+			for _, id := range packet.IDs {
+				if entities[id].origin == player {
+					println("Selected: ", id)
+					player.selectedEntities = append(player.selectedEntities, id)
+				}
+			}
 		}
 	}
 
@@ -159,12 +156,33 @@ func processServerOutput() {
 			for _, e := range m[key] {
 				var ed EntityData
 				ed.Id = e.id
+				if e.origin != nil {
+					ed.OriginId = e.origin.id
+				} else {
+					ed.OriginId = "-1"
+				}
 				ed.Type = e.entityType
 				ed.ResourceId = e.resourceId
-				//ed.Energy = int(e.stats.Energy)
-				ed.Health = float32(e.Health())
-				ed.X = float32(e.body.pos.x)
-				ed.Y = float32(e.body.pos.y)
+				ed.Count = e.stats.Count
+				if e == p {
+					//Move the player to its target position if there is one
+					if e.body.targetPos.x != 0 {
+						ed.X = float32(e.body.targetPos.x)
+					}
+					if e.body.targetPos.y != 0 {
+						ed.Y = float32(e.body.targetPos.y)
+					}
+					if int(e.body.pos.x) == int(e.body.targetPos.x) {
+						e.body.targetPos.x = 0
+					}
+					if int(e.body.pos.y) == int(e.body.targetPos.y) {
+						e.body.targetPos.y = 0
+					}
+				} else {
+					ed.Y = float32(e.body.pos.y)
+					ed.X = float32(e.body.pos.x)
+				}
+
 				ed.Angle = float32(e.body.angle)
 
 				objects = append(objects, ed)
