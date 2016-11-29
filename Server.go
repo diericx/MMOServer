@@ -25,6 +25,7 @@ type UpdatePacket struct {
 	Action          string
 	CurrentPlayerId string
 	Objects         []EntityData
+	ObjectsMin      []EntityDataMin
 }
 
 type EntityExtendedDataPacket struct {
@@ -40,16 +41,17 @@ type EntityExtendedData struct {
 }
 
 type EntityData struct {
-	Id               string
-	OriginId         string
-	Type             string
-	ResourceId       string
-	Energy           int
-	Count            int
-	X                float32
-	Y                float32
-	Angle            float32
-	ExtendedDataHash uint32
+	Id         string
+	OriginId   string
+	Type       string
+	ResourceId string
+	Count      int
+	X          float32
+	Y          float32
+}
+
+type EntityDataMin struct {
+	Id string
 }
 
 type ServerActionObj struct {
@@ -123,13 +125,11 @@ func processServerInput() {
 
 			//update expire
 			player.expireCounter = PLAYER_EXPIRE_TIME
-
-			//var packX = float64(packet.X)
-			//var packY = float64(packet.Y)
-			//if math.Abs(packX-player.body.pos.x) < 2 && math.Abs(packY-player.body.pos.y) < 2 {
-			player.body.pos.x = float64(packet.X)
-			player.body.pos.y = float64(packet.Y)
-			//}
+			player.SetPosition(float64(packet.X), float64(packet.Y))
+			//data requests
+			for _, id := range packet.IDs {
+				player.dataRequests[id] = true
+			}
 
 		} else if packet.Action == "select" {
 			player.selectedEntities = []string{}
@@ -149,11 +149,20 @@ func processServerOutput() {
 	for _, p := range players {
 
 		var objects = []EntityData{}
+		var objectsMin = []EntityDataMin{}
 
 		var keys = p.getNearbyKeys(2)
 
 		for _, key := range keys {
 			for _, e := range m[key] {
+				//if it hasnt changed, add the min data to packet and cont.
+				if (e.hasChanged == false && p.dataRequests[e.id] == false && e.entityType != "player") || len(objects) > 10 {
+					var ed EntityDataMin
+					ed.Id = e.id
+					objectsMin = append(objectsMin, ed)
+					continue
+				}
+				//if its changed, add all its data to packet
 				var ed EntityData
 				ed.Id = e.id
 				if e.origin != nil {
@@ -179,11 +188,12 @@ func processServerOutput() {
 						e.body.targetPos.y = 0
 					}
 				} else {
-					ed.Y = float32(e.body.pos.y)
-					ed.X = float32(e.body.pos.x)
+					ed.Y = float32(e.Position().y)
+					ed.X = float32(e.Position().x)
 				}
 
-				ed.Angle = float32(e.body.angle)
+				//update data requests
+				p.dataRequests[e.id] = false
 
 				objects = append(objects, ed)
 			}
@@ -193,6 +203,7 @@ func processServerOutput() {
 			Action:          "update",
 			CurrentPlayerId: p.id,
 			Objects:         objects,
+			ObjectsMin:      objectsMin,
 		}
 
 		//encode send packet
@@ -200,7 +211,7 @@ func processServerOutput() {
 		enc := codec.NewEncoder(w, &mh)
 		enc = codec.NewEncoderBytes(&packet, &mh)
 		enc.Encode(packetObj)
-		//println("Packet length: ", len(packet))
+		println("Packet length: ", len(packet))
 
 		//add packet to queue of things to send
 		var actionObj ServerActionObj

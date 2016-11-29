@@ -4,6 +4,7 @@ import (
 	"math"
 	"net"
 	"strconv"
+	"time"
 )
 
 type Vect2 struct {
@@ -12,14 +13,17 @@ type Vect2 struct {
 }
 
 type Stats struct {
-	Count int
+	Count               int
+	LastCountUpdate     time.Time
+	CountUpdateCooldown time.Duration
 }
 
 type Entity struct {
 	//server stuff
-	id         string
-	addr       *net.UDPAddr
-	hasChanged bool
+	id           string
+	addr         *net.UDPAddr
+	hasChanged   bool
+	dataRequests map[string]bool
 	//
 	key           int
 	body          Body
@@ -57,6 +61,7 @@ var energyCheckpoints = []int{}
 func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity := Entity{}
 	newEntity.active = true
+	newEntity.dataRequests = make(map[string]bool)
 
 	newEntity.id = strconv.Itoa(entityIdIncrement)
 	newEntity.resourceId = "default_planet"
@@ -79,16 +84,25 @@ func NewEntity(pos Vect2, size Vect2) *Entity {
 //default stat values
 func NewDefaultBaseStats() Stats {
 	stats := Stats{
-		Count: 0,
+		Count:               0,
+		CountUpdateCooldown: 1500 * time.Millisecond,
 	}
 	return stats
 }
 
 func updateEntities() {
+
 	for _, p := range players {
 		if p.onUpdate != nil {
-			p.onUpdate()
 			p._onUpdate()
+			p.onUpdate()
+		}
+	}
+
+	for _, p := range planets {
+		if p.onUpdate != nil {
+			p._onUpdate()
+			p.onUpdate()
 		}
 	}
 
@@ -103,7 +117,17 @@ func removeEntities() {
 	e.entity.RemoveSelf()
 }
 
+func (e *Entity) Origin(o *Entity) {
+	var prevO = e.origin
+	e.origin = o
+	if prevO != e.origin {
+		e.hasChanged = true
+	}
+}
+
 func (e *Entity) _onUpdate() {
+	e.hasChanged = false
+
 	e.updateEntityCellData()
 
 	//check for expiration
@@ -113,12 +137,10 @@ func (e *Entity) _onUpdate() {
 		e.RemoveSelf()
 	}
 
-	//p.moveEntity(Vect2{x: movX * 15, y: movY * 15})
-	e.body.pos.x += e.body.vel.x
-	e.body.pos.y += e.body.vel.y
+	e.SetPosition(e.body.pos.x+e.body.vel.x, e.body.pos.y+e.body.vel.y)
 
 	if e.stats.Count <= 0 {
-		e.origin = nil
+		e.Origin(nil)
 	}
 }
 
@@ -148,8 +170,12 @@ func (e *Entity) RemoveSelf() {
 
 //body
 func (e *Entity) SetPosition(x float64, y float64) {
+	var prevPos = e.body.pos
 	e.body.pos.x = x
 	e.body.pos.y = y
+	if prevPos != e.body.pos {
+		e.hasChanged = true
+	}
 }
 
 func (e *Entity) Position() Vect2 {

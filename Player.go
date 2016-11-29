@@ -31,8 +31,8 @@ func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	//expire
 	p.expireCounter = PLAYER_EXPIRE_TIME
 	//create new planet for the player
-	newPlanet := NewEntity(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
-	newPlanet.origin = p
+	newPlanet := NewPlanet(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
+	newPlanet.Origin(p)
 	p.body.targetPos = Vect2{newPlanet.body.pos.x, newPlanet.body.pos.y}
 	p.possessedEntities = append(p.possessedEntities, newPlanet)
 	players[addr.String()] = p
