@@ -13,9 +13,12 @@ var r1 = rand.New(s1)
 func main() {
 
 	var FRAME_WAIT_TIME float64 = 33
+	var spawnX float64 = 100
+	var spawnY float64 = 100
+	var spawnZ float64 = 100
 
 	for i := 0; i < 50; i++ {
-		NewPlanet(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
+		NewPlanet(Vect3{rand.Float64() * spawnX, rand.Float64() * spawnY, rand.Float64() * spawnZ}, Vect3{1, 1, 1})
 	}
 
 	go listenForPackets()

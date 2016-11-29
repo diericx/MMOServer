@@ -1,10 +1,13 @@
 package main
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 var planets = make(map[int]*Entity)
 
-func NewPlanet(pos Vect2, size Vect2) *Entity {
+func NewPlanet(pos Vect3, size Vect3) *Entity {
 	p := NewEntity(pos, size)
 	p.entityType = "planet"
 	p.resourceId = "default_planet"
@@ -22,7 +25,7 @@ func (e *Entity) planetUpdateFunc() {
 		if dLastCountUpdate >= e.stats.CountUpdateCooldown {
 			e.SetCount(e.stats.Count + 1)
 			e.stats.LastCountUpdate = time.Now()
-			println(e.stats.Count)
+			fmt.Printf("My PLante: %v, %v, %v, %v \n", e.id, e.Position().x, e.Position().y, e.Position().z)
 		}
 	}
 }
