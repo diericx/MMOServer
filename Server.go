@@ -160,6 +160,7 @@ func processServerOutput() {
 			for _, e := range m[key] {
 				//if it hasnt changed, add the min data to packet and cont.
 				if (changedEntities[e.id] == false && p.dataRequests[e.id] == false && e.entityType != "player") || len(objects) > 10 {
+					//if (e.entityType != "player" && e.origin == nil && p.dataRequests[e.id]) || len(objects) > 10 {
 					var ed EntityDataMin
 					ed.Id = e.id
 					objectsMin = append(objectsMin, ed)
