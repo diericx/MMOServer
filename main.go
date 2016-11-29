@@ -14,7 +14,7 @@ func main() {
 
 	var FRAME_WAIT_TIME float64 = 33
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50; i++ {
 		NewPlanet(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
 	}
 
@@ -27,6 +27,7 @@ func main() {
 		updateEntities()
 		processServerOutput()
 		sendServerOutput()
+		resetVariables()
 
 		w.waitForTime(FRAME_WAIT_TIME)
 	}

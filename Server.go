@@ -15,7 +15,7 @@ type ReceivePacket struct {
 	Uid      string
 	Value    string
 	Angle    float64
-	IDs      []string
+	IDs      []int
 	X        int
 	Y        int
 	Shooting bool
@@ -23,7 +23,7 @@ type ReceivePacket struct {
 
 type UpdatePacket struct {
 	Action          string
-	CurrentPlayerId string
+	CurrentPlayerId int
 	Objects         []EntityData
 	ObjectsMin      []EntityDataMin
 }
@@ -41,8 +41,8 @@ type EntityExtendedData struct {
 }
 
 type EntityData struct {
-	Id         string
-	OriginId   string
+	Id         int
+	OriginId   int
 	Type       string
 	ResourceId string
 	Count      int
@@ -51,7 +51,7 @@ type EntityData struct {
 }
 
 type EntityDataMin struct {
-	Id string
+	Id int
 }
 
 type ServerActionObj struct {
@@ -122,7 +122,6 @@ func processServerInput() {
 		var player = serverInputObj.entity
 
 		if packet.Action == "update" {
-
 			//update expire
 			player.expireCounter = PLAYER_EXPIRE_TIME
 			player.SetPosition(float64(packet.X), float64(packet.Y))
@@ -132,13 +131,17 @@ func processServerInput() {
 			}
 
 		} else if packet.Action == "select" {
-			player.selectedEntities = []string{}
+			player.selectedEntities = []int{}
 			for _, id := range packet.IDs {
 				if entities[id].origin == player {
 					println("Selected: ", id)
 					player.selectedEntities = append(player.selectedEntities, id)
 				}
 			}
+		} else if packet.Action == "attack" {
+			println("Attack: ", packet.IDs[0])
+			var planetToAttack = packet.IDs[0]
+			player.attackPlanet(planetToAttack)
 		}
 	}
 
@@ -156,7 +159,7 @@ func processServerOutput() {
 		for _, key := range keys {
 			for _, e := range m[key] {
 				//if it hasnt changed, add the min data to packet and cont.
-				if (e.hasChanged == false && p.dataRequests[e.id] == false && e.entityType != "player") || len(objects) > 10 {
+				if (changedEntities[e.id] == false && p.dataRequests[e.id] == false && e.entityType != "player") || len(objects) > 10 {
 					var ed EntityDataMin
 					ed.Id = e.id
 					objectsMin = append(objectsMin, ed)
@@ -168,7 +171,7 @@ func processServerOutput() {
 				if e.origin != nil {
 					ed.OriginId = e.origin.id
 				} else {
-					ed.OriginId = "-1"
+					ed.OriginId = -1
 				}
 				ed.Type = e.entityType
 				ed.ResourceId = e.resourceId
@@ -211,7 +214,7 @@ func processServerOutput() {
 		enc := codec.NewEncoder(w, &mh)
 		enc = codec.NewEncoderBytes(&packet, &mh)
 		enc.Encode(packetObj)
-		println("Packet length: ", len(packet))
+		//println("Packet length: ", len(packet))
 
 		//add packet to queue of things to send
 		var actionObj ServerActionObj

@@ -3,7 +3,6 @@ package main
 import (
 	"math"
 	"net"
-	"strconv"
 	"time"
 )
 
@@ -20,10 +19,10 @@ type Stats struct {
 
 type Entity struct {
 	//server stuff
-	id           string
+	id           int
 	addr         *net.UDPAddr
 	hasChanged   bool
-	dataRequests map[string]bool
+	dataRequests map[int]bool
 	//
 	key           int
 	body          Body
@@ -34,7 +33,7 @@ type Entity struct {
 	expireCounter int
 	//
 	stats             Stats
-	selectedEntities  []string
+	selectedEntities  []int
 	possessedEntities []*Entity
 	//user defined functions
 	onUpdate  func()
@@ -45,10 +44,11 @@ type Entity struct {
 
 //holding array
 var entityIdIncrement int = 0
-var entities = make(map[string]*Entity)
+var entities = make(map[int]*Entity)
+var changedEntities = make(map[int]bool)
 
 //hash map array
-var m = make(map[int]map[string]*Entity)
+var m = make(map[int]map[int]*Entity)
 
 //channel for entities to remove
 var entitiesToRemove = make(chan ServerActionObj, 1000)
@@ -61,9 +61,9 @@ var energyCheckpoints = []int{}
 func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity := Entity{}
 	newEntity.active = true
-	newEntity.dataRequests = make(map[string]bool)
+	newEntity.dataRequests = make(map[int]bool)
 
-	newEntity.id = strconv.Itoa(entityIdIncrement)
+	newEntity.id = entityIdIncrement
 	newEntity.resourceId = "default_planet"
 	newEntity.body.pos = pos
 	newEntity.body.size = size
@@ -93,41 +93,49 @@ func NewDefaultBaseStats() Stats {
 func updateEntities() {
 
 	for _, p := range players {
+		//p.hasChanged = false
 		if p.onUpdate != nil {
-			p._onUpdate()
 			p.onUpdate()
+			p._onUpdate()
 		}
 	}
 
 	for _, p := range planets {
+		//p.hasChanged = false
 		if p.onUpdate != nil {
-			p._onUpdate()
 			p.onUpdate()
+			p._onUpdate()
 		}
 	}
 
 }
 
-func removeEntities() {
-	if len(entitiesToRemove) <= 0 {
-		return
+func (e *Entity) attackPlanet(pID int) {
+	var p2a = entities[pID]
+	for _, p := range e.selectedEntities {
+		entities[p].stats.Count = entities[p].stats.Count / 2
+		p2a.stats.Count += entities[p].stats.Count
+		p2a.SetOrigin(e)
 	}
-
-	var e = <-entitiesToRemove
-	e.entity.RemoveSelf()
 }
 
-func (e *Entity) Origin(o *Entity) {
+func (e *Entity) SetOrigin(o *Entity) {
 	var prevO = e.origin
 	e.origin = o
 	if prevO != e.origin {
-		e.hasChanged = true
+		changedEntities[e.id] = true
+	}
+}
+
+func (e *Entity) SetCount(c int) {
+	var prevC = e.stats.Count
+	e.stats.Count = c
+	if prevC != e.stats.Count {
+		changedEntities[e.id] = true
 	}
 }
 
 func (e *Entity) _onUpdate() {
-	e.hasChanged = false
-
 	e.updateEntityCellData()
 
 	//check for expiration
@@ -140,7 +148,7 @@ func (e *Entity) _onUpdate() {
 	e.SetPosition(e.body.pos.x+e.body.vel.x, e.body.pos.y+e.body.vel.y)
 
 	if e.stats.Count <= 0 {
-		e.Origin(nil)
+		e.SetOrigin(nil)
 	}
 }
 
@@ -166,6 +174,19 @@ func (e *Entity) RemoveSelf() {
 	removeFromMap(e.key, e.id)
 }
 
+func removeEntities() {
+	if len(entitiesToRemove) <= 0 {
+		return
+	}
+
+	var e = <-entitiesToRemove
+	e.entity.RemoveSelf()
+}
+
+func resetVariables() {
+	changedEntities = make(map[int]bool)
+}
+
 //------Helper functions with body--------
 
 //body
@@ -174,7 +195,7 @@ func (e *Entity) SetPosition(x float64, y float64) {
 	e.body.pos.x = x
 	e.body.pos.y = y
 	if prevPos != e.body.pos {
-		e.hasChanged = true
+		changedEntities[e.id] = true
 	}
 }
 
@@ -202,7 +223,7 @@ func (e *Entity) calcKey() int {
 func (e *Entity) addToCell(c int) {
 	//if new map in new Position doesnt exist, create it
 	if m[c] == nil {
-		m[c] = make(map[string]*Entity)
+		m[c] = make(map[int]*Entity)
 	}
 
 	m[c][e.id] = e
@@ -230,7 +251,7 @@ func (e *Entity) updateEntityCellData() {
 }
 
 //remove entity from map
-func removeFromMap(key int, id string) {
+func removeFromMap(key int, id int) {
 	//remove entity from old key array
 	delete(m[key], id)
 	//if old key array is empty, remove it
