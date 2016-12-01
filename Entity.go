@@ -49,7 +49,7 @@ var m = make(map[int]map[int]*Entity)
 var entitiesToRemove = make(chan ServerActionObj, 1000)
 
 //hash cell size
-var CELL_SIZE = 15
+var CELL_SIZE = 75
 var INVENTORY_MAX = 10
 var energyCheckpoints = []int{}
 

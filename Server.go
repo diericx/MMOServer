@@ -187,11 +187,17 @@ func processServerOutput() {
 					if e.body.targetPos.y != 0 {
 						ed.Y = float32(e.body.targetPos.y)
 					}
+					if e.body.targetPos.z != 0 {
+						ed.Z = float32(e.body.targetPos.z)
+					}
 					if int(e.body.pos.x) == int(e.body.targetPos.x) {
 						e.body.targetPos.x = 0
 					}
 					if int(e.body.pos.y) == int(e.body.targetPos.y) {
 						e.body.targetPos.y = 0
+					}
+					if int(e.body.pos.z) == int(e.body.targetPos.z) {
+						e.body.targetPos.z = 0
 					}
 				} else {
 					ed.Y = float32(e.Position().y)

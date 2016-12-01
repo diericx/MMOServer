@@ -35,7 +35,7 @@ func NewPlayer(addr *net.UDPAddr, pos Vect3, size Vect3) *Entity {
 	newPlanet.SetOrigin(p)
 	println(newPlanet.origin.id)
 	//newPlanet.Origin(p)
-	p.body.targetPos = Vect3{newPlanet.body.pos.x, newPlanet.body.pos.y, newPlanet.body.pos.z}
+	p.body.targetPos = newPlanet.body.pos
 	p.possessedEntities = append(p.possessedEntities, newPlanet)
 	players[addr.String()] = p
 
@@ -43,7 +43,7 @@ func NewPlayer(addr *net.UDPAddr, pos Vect3, size Vect3) *Entity {
 }
 
 func (e *Entity) playerUpdateFunc() {
-	e.detectCollisions()
+	//e.detectCollisions()
 }
 
 func (e *Entity) playerOnCollide(other *Entity) {
