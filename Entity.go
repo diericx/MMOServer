@@ -23,6 +23,7 @@ type Entity struct {
 	body          Body
 	entityType    string
 	origin        *Entity
+	target        *Entity
 	active        bool
 	resourceId    string
 	expireCounter int
