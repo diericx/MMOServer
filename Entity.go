@@ -54,7 +54,7 @@ var CELL_SIZE = 75
 var INVENTORY_MAX = 10
 var energyCheckpoints = []int{}
 
-func NewEntity(pos Vect3, size Vect3) *Entity {
+func NewEntity(pos Vect2, size Vect2) *Entity {
 	newEntity := Entity{}
 	newEntity.active = true
 	newEntity.dataRequests = make(map[int]bool)
@@ -195,7 +195,7 @@ func (e *Entity) SetPosition(x float64, y float64) {
 	}
 }
 
-func (e *Entity) Position() Vect3 {
+func (e *Entity) Position() Vect2 {
 	return e.body.pos
 }
 

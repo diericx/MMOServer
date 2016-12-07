@@ -100,7 +100,7 @@ func listenForPackets() {
 		if p == nil {
 			//player hasn't been instantiated yet
 			println("creating player...")
-			NewPlayer(addr, Vect3{x: 0, y: 0, z: 0}, Vect3{x: PLAYER_SIZE, y: PLAYER_SIZE, z: PLAYER_SIZE})
+			NewPlayer(addr, Vect2{x: 0, y: 0}, Vect2{PLAYER_SIZE, PLAYER_SIZE})
 		} else {
 			//player has been instantiated
 			var msg = ReceivePacket{}
@@ -187,22 +187,15 @@ func processServerOutput() {
 					if e.body.targetPos.y != 0 {
 						ed.Y = float32(e.body.targetPos.y)
 					}
-					if e.body.targetPos.z != 0 {
-						ed.Z = float32(e.body.targetPos.z)
-					}
 					if int(e.body.pos.x) == int(e.body.targetPos.x) {
 						e.body.targetPos.x = 0
 					}
 					if int(e.body.pos.y) == int(e.body.targetPos.y) {
 						e.body.targetPos.y = 0
 					}
-					if int(e.body.pos.z) == int(e.body.targetPos.z) {
-						e.body.targetPos.z = 0
-					}
 				} else {
 					ed.Y = float32(e.Position().y)
 					ed.X = float32(e.Position().x)
-					ed.Z = float32(e.Position().z)
 				}
 
 				//update data requests

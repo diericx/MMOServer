@@ -20,7 +20,7 @@ var HEALTH_MOD int = 20
 var SPEED_MOD float64 = 0.5
 var FIRERATE_MOD int = 2
 
-func NewPlayer(addr *net.UDPAddr, pos Vect3, size Vect3) *Entity {
+func NewPlayer(addr *net.UDPAddr, pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
 	p.addr = addr
 	p.entityType = "player"
@@ -31,10 +31,9 @@ func NewPlayer(addr *net.UDPAddr, pos Vect3, size Vect3) *Entity {
 	//expire
 	p.expireCounter = PLAYER_EXPIRE_TIME
 	//create new planet for the player
-	newPlanet := NewPlanet(Vect3{rand.Float64() * 50, rand.Float64() * 50, rand.Float64() * 50}, Vect3{1, 1, 1})
+	newPlanet := NewPlanet(Vect2{rand.Float64() * 50, rand.Float64() * 50}, Vect2{1, 1})
 	newPlanet.SetOrigin(p)
 	println(newPlanet.origin.id)
-	//newPlanet.Origin(p)
 	p.body.targetPos = newPlanet.body.pos
 	p.possessedEntities = append(p.possessedEntities, newPlanet)
 	players[addr.String()] = p

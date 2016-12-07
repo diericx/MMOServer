@@ -9,7 +9,7 @@ var planets = make(map[int]*Entity)
 
 var planetResources = [7]string{"egipt", "forest", "havay", "ice", "ice_gray", "orange_planet", "pine"}
 
-func NewPlanet(pos Vect3, size Vect3) *Entity {
+func NewPlanet(pos Vect2, size Vect2) *Entity {
 	p := NewEntity(pos, size)
 	p.entityType = "planet"
 	p.resourceId = planetResources[rand.Intn(len(planetResources))]

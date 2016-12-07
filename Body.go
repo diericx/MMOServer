@@ -12,10 +12,10 @@ type Vect3 struct {
 }
 
 type Body struct {
-	pos        Vect3
-	targetPos  Vect3
-	size       Vect3
-	vel        Vect3
+	pos        Vect2
+	targetPos  Vect2
+	size       Vect2
+	vel        Vect2
 	continuous bool
 	angle      float64
 	points     []Vect2
