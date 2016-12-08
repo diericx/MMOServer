@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 
@@ -23,6 +24,7 @@ type ReceivePacket struct {
 }
 
 type UpdatePacket struct {
+	Id              int
 	Action          string
 	CurrentPlayerId int
 	Objects         []EntityData
@@ -65,6 +67,10 @@ type ServerActionObj struct {
 
 var LISTEN_ADDRESS = ":7777"
 var BUF_SIZE = 2048
+var MAX_ENTITIES_PER_PACKET = 15
+var currentPacketId = 0
+
+var importantPackets = make(map[int]UpdatePacket)
 
 //variables for decoding
 var (
@@ -142,8 +148,30 @@ func processServerInput() {
 			}
 		} else if packet.Action == "attack" {
 			println("Attack: ", packet.IDs[0])
+			//get planet to attack id
 			var planetToAttack = packet.IDs[0]
+			//instigate attack
 			player.attackPlanet(planetToAttack)
+			//*** send attack packet to players ***
+			//add all the selected objects
+			var objectsMin = []EntityDataMin{}
+			for _, i := range player.selectedEntities {
+				var originEntity = EntityDataMin{Id: i}
+				objectsMin = append(objectsMin, originEntity)
+			}
+			//add the target obj
+			var target = EntityDataMin{Id: planetToAttack}
+			objectsMin = append(objectsMin, target)
+			//create the packet
+			var newPacket = UpdatePacket{
+				Id:         getCurrentPacketId(),
+				Action:     "attack",
+				ObjectsMin: objectsMin,
+			}
+			importantPackets[player.id] = newPacket
+		} else if packet.Action == "confirm" {
+			delete(importantPackets, player.id)
+			println("CONFIRMED")
 		}
 	}
 
@@ -161,7 +189,7 @@ func processServerOutput() {
 		for _, key := range keys {
 			for _, e := range m[key] {
 				//if it hasnt changed, add the min data to packet and cont.
-				if (changedEntities[e.id] == false && p.dataRequests[e.id] == false && e.entityType != "player") || len(objects) > 10 {
+				if changedEntities[e.id] == false && p.dataRequests[e.id] == false && e.entityType != "player" {
 					//if (e.entityType != "player" && e.origin == nil && p.dataRequests[e.id]) || len(objects) > 10 {
 					var ed EntityDataMin
 					ed.Id = e.id
@@ -200,33 +228,57 @@ func processServerOutput() {
 
 				//update data requests
 				p.dataRequests[e.id] = false
-
+				//add entity data to array
 				objects = append(objects, ed)
+
+				//if too may entities for this packet, send it and reset
+				if len(objects) > MAX_ENTITIES_PER_PACKET {
+					//add packet to queue
+					createAndQueuePacket(getCurrentPacketId(), "update", p, objects, objectsMin)
+					//reset arrays
+					objects = []EntityData{}
+					objectsMin = []EntityDataMin{}
+				}
 			}
 		}
 
-		packetObj := UpdatePacket{
-			Action:          "update",
-			CurrentPlayerId: p.id,
-			Objects:         objects,
-			ObjectsMin:      objectsMin,
+		//add packet to queue to be sent
+		createAndQueuePacket(getCurrentPacketId(), "update", p, objects, objectsMin)
+		// println(importantPackets[p.id].Action)
+		if importantPackets[p.id].Action != "" {
+			queuePacket(importantPackets[p.id], p)
 		}
-
-		//encode send packet
-		var packet []byte
-		enc := codec.NewEncoder(w, &mh)
-		enc = codec.NewEncoderBytes(&packet, &mh)
-		enc.Encode(packetObj)
-		//println("Packet length: ", len(packet))
-
-		//add packet to queue of things to send
-		var actionObj ServerActionObj
-		actionObj.entity = p
-		actionObj.sendPacketBytes = packet
-		actionObj.addr = p.addr
-		serverOutput <- actionObj
-
 	}
+}
+
+func queuePacket(uPacket UpdatePacket, p *Entity) {
+
+	//encode packet
+	var packet []byte
+	enc := codec.NewEncoder(w, &mh)
+	enc = codec.NewEncoderBytes(&packet, &mh)
+	enc.Encode(uPacket)
+	//println("Packet length: ", len(packet))
+
+	//add packet to queue of things to send
+	var actionObj ServerActionObj
+	actionObj.entity = p
+	actionObj.sendPacketBytes = packet
+	actionObj.addr = p.addr
+	serverOutput <- actionObj
+}
+
+func createAndQueuePacket(id int, action string, p *Entity, entities []EntityData, entitiesMin []EntityDataMin) {
+	//create packet
+	packetObj := UpdatePacket{
+		Id:              id,
+		Action:          action,
+		CurrentPlayerId: p.id,
+		Objects:         entities,
+		ObjectsMin:      entitiesMin,
+	}
+
+	queuePacket(packetObj, p)
 }
 
 func sendServerOutput() {
@@ -239,6 +291,14 @@ func sendServerOutput() {
 		var outputObj = <-serverOutput
 		sendMessage(outputObj.sendPacketBytes, serverConn, outputObj.addr)
 	}
+}
+
+func getCurrentPacketId() int {
+	if currentPacketId >= math.MaxInt32 {
+		currentPacketId = 0
+	}
+	currentPacketId += 1
+	return currentPacketId
 }
 
 func CheckError(err error) {
