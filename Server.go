@@ -55,7 +55,8 @@ type EntityData struct {
 }
 
 type EntityDataMin struct {
-	Id int
+	Id    int
+	Value int
 }
 
 type ServerActionObj struct {
@@ -155,8 +156,8 @@ func processServerInput() {
 			//*** send attack packet to players ***
 			//add all the selected objects
 			var objectsMin = []EntityDataMin{}
-			for _, i := range player.selectedEntities {
-				var originEntity = EntityDataMin{Id: i}
+			for _, id := range player.selectedEntities {
+				var originEntity = EntityDataMin{Id: id, Value: entities[id].stats.Count}
 				objectsMin = append(objectsMin, originEntity)
 			}
 			//add the target obj
@@ -171,7 +172,6 @@ func processServerInput() {
 			importantPackets[player.id] = newPacket
 		} else if packet.Action == "confirm" {
 			delete(importantPackets, player.id)
-			println("CONFIRMED")
 		}
 	}
 
