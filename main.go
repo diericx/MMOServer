@@ -26,6 +26,7 @@ func main() {
 		w := ForLoopWaiter{start: time.Now()}
 
 		processServerInput()
+		updateAttacks()
 		updateEntities()
 		processServerOutput()
 		sendServerOutput()

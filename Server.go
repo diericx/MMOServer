@@ -149,7 +149,7 @@ func processServerInput() {
 			}
 		} else if packet.Action == "attack" {
 			println("Attack: ", packet.IDs[0])
-			//get planet to attack id
+			//get planet-to-attack id
 			var planetToAttack = packet.IDs[0]
 			//instigate attack
 			player.attackPlanet(planetToAttack)
