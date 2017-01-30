@@ -1,7 +1,7 @@
 package main
 
 import "time"
-
+asdf
 type ForLoopWaiter struct {
 	start time.Time
 }
