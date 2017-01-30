@@ -110,8 +110,6 @@ func (e *Entity) attackPlanet(pID int) {
 	var p2a = entities[pID]
 	for _, p := range e.selectedEntities {
 		entities[p].stats.Count = entities[p].stats.Count / 2
-		// p2a.stats.Count += entities[p].stats.Count
-		// p2a.SetOrigin(e)
 		NewAttack(p2a, entities[p], 3000*time.Millisecond, entities[p].stats.Count)
 	}
 }

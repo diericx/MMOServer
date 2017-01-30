@@ -13,7 +13,7 @@ var r1 = rand.New(s1)
 func main() {
 
 	var FRAME_WAIT_TIME float64 = 33
-	var spawnX float64 = 500
+	var spawnXaSD float64 = 500
 	var spawnY float64 = 500
 
 	for i := 0; i < 200; i++ {
