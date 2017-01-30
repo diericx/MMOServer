@@ -10,7 +10,7 @@ import (
 )
 
 //ListenAddress The listen address for the server
-var ListenAddress = ":7778"
+var ListenAddress = "10.5.1.30:7778"
 
 //BufSize The buffer size for receiving data
 var BufSize = 2048
