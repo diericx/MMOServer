@@ -4,23 +4,34 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
+//Channel that handles input
+var MovePacketChan = make(chan MovePacket, 100)
+
 //ListenAddress The listen address for the server
-var ListenAddress = ":7778"
+var ListenAddress = "127.0.0.1:7778"
 
 //BufSize The buffer size for receiving data
 var BufSize = 2048
 
-//FrameWaitTime time between frames
-var FrameWaitTime float64 = 33
-
 var (
 	conn *net.UDPConn
 )
+
+//obtains the packet id from the packet
+type PacketID struct {
+	ID int
+}
+
+//obtains input from user
+type MovePacket struct {
+	e *Entity
+	X int
+	Y int
+}
 
 //InitConnection Initializes the server connection
 func InitConnection() {
@@ -36,6 +47,7 @@ func InitConnection() {
 //Listen Listens for incomming packets, also closes the connection
 func Listen() {
 	defer conn.Close()
+	println("Listening for players...")
 
 	buf := make([]byte, BufSize)
 
@@ -43,38 +55,45 @@ func Listen() {
 		n, addr, err := conn.ReadFromUDP(buf)
 		CheckError(err)
 
-		var data Entity
-		err = msgpack.Unmarshal(buf[:n], &data)
+		var parsedPacketID PacketID
+		err = msgpack.Unmarshal(buf[:n], &parsedPacketID)
 
+		//TODO - Put player creation on the main thread
 		p := GetPlayer(addr)
 		if p == nil {
 			p = NewPlayer(addr)
+			println("New Player Connected!")
+		}
+		//println(parsedPacketID.ID)
+		if parsedPacketID.ID == 1 {
+			var movePacket MovePacket
+			err = msgpack.Unmarshal(buf[:n], &movePacket)
+			movePacket.e = p.e
+			MovePacketChan <- movePacket
+			// err = msgpack.Unmarshal(buf[:n], &input)
+			// p.e.X += float32(input.X)
+			// p.e.Y += float32(input.Y)
 		}
 
-		p.e.X = data.X
-		p.e.Y = data.Y
-		p.e.Z = data.Z
+		// p.e.X = data.X
+		// p.e.Y = data.Y
+		// p.e.Z = data.Z
 	}
+	println("break")
 }
 
-//Send Sends data to players
+//Sends data to players
 func Send() {
-	for {
-		w := ForLoopWaiter{start: time.Now()}
-
-		for _, p := range players {
-			for _, p2 := range players {
-				if p == p2 {
-					continue
-				}
-				b, err := msgpack.Marshal(p2.e)
-				CheckError(err)
-
-				sendMessage(b, p.addr)
+	for _, p := range players {
+		for _, p2 := range players {
+			if p == p2 {
+				continue
 			}
-		}
+			b, err := msgpack.Marshal(p2.e)
+			CheckError(err)
 
-		w.waitForTime(FrameWaitTime)
+			sendMessage(b, p.addr)
+		}
 	}
 }
 
