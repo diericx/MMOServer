@@ -9,7 +9,7 @@ import (
 )
 
 //Channel that handles input
-var MovePacketChan = make(chan MovePacket, 100)
+var InputPacketChan = make(chan InputPacket, 100)
 
 //ListenAddress The listen address for the server
 var ListenAddress = "127.0.0.1:7778"
@@ -22,15 +22,19 @@ var (
 )
 
 //obtains the packet id from the packet
-type PacketID struct {
-	ID int
+type InputPacket struct {
+	addr *net.UDPAddr
+	Id   int
+	X    int
+	Y    int
 }
 
-//obtains input from user
-type MovePacket struct {
-	e *Entity
-	X int
-	Y int
+type StatePacket struct {
+	Entities Entity
+}
+
+type TestPacket struct {
+	TestFloat float32
 }
 
 //InitConnection Initializes the server connection
@@ -55,29 +59,10 @@ func Listen() {
 		n, addr, err := conn.ReadFromUDP(buf)
 		CheckError(err)
 
-		var parsedPacketID PacketID
-		err = msgpack.Unmarshal(buf[:n], &parsedPacketID)
-
-		//TODO - Put player creation on the main thread
-		p := GetPlayer(addr)
-		if p == nil {
-			p = NewPlayer(addr)
-			println("New Player Connected!")
-		}
-		//println(parsedPacketID.ID)
-		if parsedPacketID.ID == 1 {
-			var movePacket MovePacket
-			err = msgpack.Unmarshal(buf[:n], &movePacket)
-			movePacket.e = p.e
-			MovePacketChan <- movePacket
-			// err = msgpack.Unmarshal(buf[:n], &input)
-			// p.e.X += float32(input.X)
-			// p.e.Y += float32(input.Y)
-		}
-
-		// p.e.X = data.X
-		// p.e.Y = data.Y
-		// p.e.Z = data.Z
+		var inputPacket InputPacket
+		err = msgpack.Unmarshal(buf[:n], &inputPacket)
+		inputPacket.addr = addr
+		InputPacketChan <- inputPacket
 	}
 	println("break")
 }
@@ -85,15 +70,22 @@ func Listen() {
 //Sends data to players
 func Send() {
 	for _, p := range players {
-		for _, p2 := range players {
-			if p == p2 {
-				continue
-			}
-			b, err := msgpack.Marshal(p2.e)
-			CheckError(err)
+		// var i = 0
+		// entities := make([]Entity, len(players))
+		// statePacket := StatePacket{}
+		// statePacket.Entities = entities
+		// for _, p2 := range players {
+		// 	entities[i] = *p2.e
+		// 	i++
+		// }
+		// b, err := msgpack.Marshal(statePacket)
+		// CheckError(err)
 
-			sendMessage(b, p.addr)
-		}
+		t := TestPacket{TestFloat: 1.4}
+		b, err := msgpack.Marshal(t)
+		CheckError(err)
+
+		sendMessage(b, p.addr)
 	}
 }
 

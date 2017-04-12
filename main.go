@@ -7,7 +7,7 @@ type ForLoopWaiter struct {
 }
 
 //FrameWaitTime time between frames
-var FrameWaitTime float64 = 33
+var FrameWaitTime float64 = 50
 
 func main() {
 	InitConnection()
@@ -24,12 +24,29 @@ func main() {
 //proccess all player input packets
 func ProcessPlayerInput() {
 	//process movement packets
-	for len(MovePacketChan) > 0 {
-		p := <-MovePacketChan
+	for len(InputPacketChan) > 0 {
+		packet := <-InputPacketChan
+
+		//TODO - Put player creation on the main thread
+		p := GetPlayer(packet.addr)
+		if p == nil {
+			p = NewPlayer(packet.addr)
+			println("New Player Connected!")
+		}
+		println(packet.Id)
+		if packet.Id == 1 {
+			// movePacket.e = p.e
+			println(packet.X, packet.Y)
+			p.e.X += float32(packet.X) * 1
+			p.e.Y += float32(packet.Y) * 1
+			// MovePacketChan <- movePacket
+			// err = msgpack.Unmarshal(buf[:n], &input)
+		}
+		// println(p.X, p.Y)
 		//apply movement
-		p.e.X += float32(p.X)
-		p.e.Y += float32(p.Y)
-		println(p.e.X)
+		// p.e.X += float32(p.X) * 10
+		// p.e.Y += float32(p.Y) * 10
+		//println(p.e.X)
 	}
 }
 
