@@ -3,45 +3,38 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
-	"time"
 
 	msgpack "gopkg.in/vmihailenco/msgpack.v2"
-
-	codec "github.com/ugorji/go/codec"
 )
 
 //ListenAddress The listen address for the server
 var ListenAddress = "127.0.0.1:7778"
 
 //BufSize The buffer size for receiving data
-var BufSize = 2048
-
-//FrameWaitTime time between frames
-var FrameWaitTime float64 = 33
+var bufSize = 2048
 
 var (
 	conn *net.UDPConn
 )
 
-var (
-	v      interface{} // value to decode/encode into
-	reader io.Reader
-	writer io.Writer
-	b      []byte
-	mh     codec.MsgpackHandle
-)
-
-type InputPacket struct {
-	Id int
-	X  int
-	Y  int
+//GetPacketID Get's the packet id from a packet
+type GetPacketID struct {
+	ID int
 }
 
-type TestPacket struct {
-	TestFloat float32
+//InputPacket Get's input data from packet
+type InputPacket struct {
+	ID     int
+	X      int
+	Y      int
+	entity *Entity
+}
+
+//StatePacket sends whole state to a player
+type StatePacket struct {
+	Entities []Entity
 }
 
 //InitConnection Initializes the server connection
@@ -59,25 +52,30 @@ func InitConnection() {
 func Listen() {
 	defer conn.Close()
 
-	buf := make([]byte, BufSize)
+	buf := make([]byte, bufSize)
 
 	for {
 		n, addr, err := conn.ReadFromUDP(buf)
 		CheckError(err)
 
-		var packet InputPacket
-
-		dec := codec.NewDecoder(reader, &mh)
-		dec = codec.NewDecoderBytes(buf[:n], &mh)
-		err = dec.Decode(&packet)
-		println(packet.X)
+		var pID GetPacketID
+		err = msgpack.Unmarshal(buf[:n], &pID)
+		CheckError(err)
 
 		p := GetPlayer(addr)
 		if p == nil {
 			p = NewPlayer(addr)
 		}
 
-		println(p.e.Id)
+		if pID.ID == 1 { //Movement input
+			//Unpack data
+			var packet InputPacket
+			err = msgpack.Unmarshal(buf[:n], &packet)
+			//Send it to the channel
+			packet.entity = p.e
+			inputChan <- packet
+			println(len(inputChan))
+		}
 
 		// p.e.X = data.X
 		// p.e.Y = data.Y
@@ -87,37 +85,25 @@ func Listen() {
 
 //Send Sends data to players
 func Send() {
-	for {
-		w := ForLoopWaiter{start: time.Now()}
 
-		for _, p := range players {
-			for _, p2 := range players {
-				if p == p2 {
-					continue
-				}
+	for _, p := range players {
 
-				t := TestPacket{TestFloat: 69}
+		var entitiesToSend = make([]Entity, len(players), len(players))
+		var statePacket StatePacket
+		i := 0
 
-				//---UGORJI---
-				// enc := codec.NewEncoder(writer, &mh)
-				// enc = codec.NewEncoderBytes(&b, &mh)
-				// err := enc.Encode(t)
-				// println(err)
-
-				//---vmihailenco---
-				b, err := msgpack.Marshal(t)
-				CheckError(err)
-
-				// data, _ := p2.e.MarshalMsg(nil)
-				// b, err := msgpack.Marshal(p2.e)
-				// CheckError(err)
-
-				sendMessage(b, p.addr)
-			}
+		for _, p2 := range players {
+			entitiesToSend[i] = *p2.e
+			i++
 		}
+		statePacket.Entities = entitiesToSend
+		//---vmihailenco---
+		b, err := msgpack.Marshal(statePacket)
+		CheckError(err)
 
-		w.waitForTime(FrameWaitTime)
+		sendMessage(b, p.addr)
 	}
+
 }
 
 func sendMessage(msg []byte, addr *net.UDPAddr) {
