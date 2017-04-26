@@ -1,16 +1,20 @@
+//go:generate msgp
 package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"time"
 
-	"gopkg.in/vmihailenco/msgpack.v2"
+	msgpack "gopkg.in/vmihailenco/msgpack.v2"
+
+	codec "github.com/ugorji/go/codec"
 )
 
 //ListenAddress The listen address for the server
-var ListenAddress = "10.5.1.30:7778"
+var ListenAddress = "127.0.0.1:7778"
 
 //BufSize The buffer size for receiving data
 var BufSize = 2048
@@ -21,6 +25,24 @@ var FrameWaitTime float64 = 33
 var (
 	conn *net.UDPConn
 )
+
+var (
+	v      interface{} // value to decode/encode into
+	reader io.Reader
+	writer io.Writer
+	b      []byte
+	mh     codec.MsgpackHandle
+)
+
+type InputPacket struct {
+	Id int
+	X  int
+	Y  int
+}
+
+type TestPacket struct {
+	TestFloat float32
+}
 
 //InitConnection Initializes the server connection
 func InitConnection() {
@@ -43,17 +65,23 @@ func Listen() {
 		n, addr, err := conn.ReadFromUDP(buf)
 		CheckError(err)
 
-		var data Entity
-		err = msgpack.Unmarshal(buf[:n], &data)
+		var packet InputPacket
+
+		dec := codec.NewDecoder(reader, &mh)
+		dec = codec.NewDecoderBytes(buf[:n], &mh)
+		err = dec.Decode(&packet)
+		println(packet.X)
 
 		p := GetPlayer(addr)
 		if p == nil {
 			p = NewPlayer(addr)
 		}
 
-		p.e.X = data.X
-		p.e.Y = data.Y
-		p.e.Z = data.Z
+		println(p.e.Id)
+
+		// p.e.X = data.X
+		// p.e.Y = data.Y
+		// p.e.Z = data.Z
 	}
 }
 
@@ -67,8 +95,22 @@ func Send() {
 				if p == p2 {
 					continue
 				}
-				b, err := msgpack.Marshal(p2.e)
+
+				t := TestPacket{TestFloat: 69}
+
+				//---UGORJI---
+				// enc := codec.NewEncoder(writer, &mh)
+				// enc = codec.NewEncoderBytes(&b, &mh)
+				// err := enc.Encode(t)
+				// println(err)
+
+				//---vmihailenco---
+				b, err := msgpack.Marshal(t)
 				CheckError(err)
+
+				// data, _ := p2.e.MarshalMsg(nil)
+				// b, err := msgpack.Marshal(p2.e)
+				// CheckError(err)
 
 				sendMessage(b, p.addr)
 			}
