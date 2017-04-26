@@ -8,22 +8,35 @@ var chanBufSize = 1024
 var inputChan = make(chan InputPacket, chanBufSize)
 
 //FrameWaitTime time between frames
-var FrameWaitTime float64 = 33
+var updateFrameWaitTime float64 = 100
+var updateDeltaTime = float32(updateFrameWaitTime) / 1000
+var sendFrameWaitTime float64 = 50
+var sendDeltaTime = float32(sendFrameWaitTime) / 1000
 
+//ForLoopWaiter Holds start time for waiting in a loop
 type ForLoopWaiter struct {
 	start time.Time
+}
+
+//Vector2 A Vector2
+type Vector2 struct {
+	x float32
+	y float32
 }
 
 func main() {
 	InitConnection()
 
 	go Listen()
+	go Send()
 
 	for {
 		w := ForLoopWaiter{start: time.Now()}
+
 		processInput()
-		Send()
-		w.waitForTime(FrameWaitTime)
+		updateEntities()
+
+		w.waitForTime(updateFrameWaitTime)
 	}
 
 }
@@ -32,8 +45,16 @@ func processInput() {
 	//Process inputChan
 	for len(inputChan) > 0 {
 		inputPacket := <-inputChan
-		inputPacket.entity.X += float32(inputPacket.X)
-		inputPacket.entity.Y += float32(inputPacket.Y)
+		inputPacket.entity.mov.x = float32(inputPacket.X)
+		inputPacket.entity.mov.y = float32(inputPacket.Y)
+	}
+}
+
+func updateEntities() {
+	//Update player entities
+	for _, p := range players {
+		p.e.X += p.e.mov.x * updateDeltaTime
+		p.e.Y += p.e.mov.y * updateDeltaTime
 	}
 }
 

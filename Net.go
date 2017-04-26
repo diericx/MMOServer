@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	msgpack "gopkg.in/vmihailenco/msgpack.v2"
 )
@@ -74,36 +75,34 @@ func Listen() {
 			//Send it to the channel
 			packet.entity = p.e
 			inputChan <- packet
-			println(len(inputChan))
 		}
 
-		// p.e.X = data.X
-		// p.e.Y = data.Y
-		// p.e.Z = data.Z
 	}
 }
 
 //Send Sends data to players
 func Send() {
+	for {
+		w := ForLoopWaiter{start: time.Now()}
+		for _, p := range players {
 
-	for _, p := range players {
+			var entitiesToSend = make([]Entity, len(players), len(players))
+			var statePacket StatePacket
+			i := 0
 
-		var entitiesToSend = make([]Entity, len(players), len(players))
-		var statePacket StatePacket
-		i := 0
+			for _, p2 := range players {
+				entitiesToSend[i] = *p2.e
+				i++
+			}
+			statePacket.Entities = entitiesToSend
+			//---vmihailenco---
+			b, err := msgpack.Marshal(statePacket)
+			CheckError(err)
 
-		for _, p2 := range players {
-			entitiesToSend[i] = *p2.e
-			i++
+			sendMessage(b, p.addr)
 		}
-		statePacket.Entities = entitiesToSend
-		//---vmihailenco---
-		b, err := msgpack.Marshal(statePacket)
-		CheckError(err)
-
-		sendMessage(b, p.addr)
+		w.waitForTime(sendFrameWaitTime)
 	}
-
 }
 
 func sendMessage(msg []byte, addr *net.UDPAddr) {
