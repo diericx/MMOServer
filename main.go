@@ -53,7 +53,9 @@ func main() {
 func initPhysics() {
 
 	space = chipmunk.NewSpace()
-	space.Gravity = vect.Vect{0, -900}
+	space.Gravity = vect.Vect{0, 0}
+	space.SetDamping(vect.Float(0.1))
+
 }
 
 func processInput() {
@@ -68,8 +70,13 @@ func processInput() {
 func updateEntities() {
 	//Update player entities
 	for _, p := range players {
-		p.e.X += p.e.mov.x * updateDeltaTime * 5
-		p.e.Y += p.e.mov.y * updateDeltaTime * 5
+		// update exported values
+		p.e.X = float32(p.e.body.Position().X)
+		p.e.Y = float32(p.e.body.Position().Y)
+		// set velocity
+		p.e.body.AddVelocity(p.e.mov.x, p.e.mov.y)
+		//p.e.X += p.e.mov.x * updateDeltaTime * 5
+		//p.e.Y += p.e.mov.y * updateDeltaTime * 5
 	}
 }
 
