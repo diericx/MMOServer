@@ -1,8 +1,15 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/vova616/chipmunk"
+	"github.com/vova616/chipmunk/vect"
+)
 
 var chanBufSize = 1024
+
+var space *chipmunk.Space
 
 //Create Channels
 var inputChan = make(chan InputPacket, chanBufSize)
@@ -10,7 +17,7 @@ var inputChan = make(chan InputPacket, chanBufSize)
 //FrameWaitTime time between frames
 var updateFrameWaitTime float64 = 100
 var updateDeltaTime = float32(updateFrameWaitTime) / 1000
-var sendFrameWaitTime float64 = 50
+var sendFrameWaitTime float64 = 100
 var sendDeltaTime = float32(sendFrameWaitTime) / 1000
 
 //ForLoopWaiter Holds start time for waiting in a loop
@@ -26,6 +33,7 @@ type Vector2 struct {
 
 func main() {
 	InitConnection()
+	initPhysics()
 
 	go Listen()
 	go Send()
@@ -35,10 +43,17 @@ func main() {
 
 		processInput()
 		updateEntities()
+		space.Step(vect.Float(updateDeltaTime))
 
 		w.waitForTime(updateFrameWaitTime)
 	}
 
+}
+
+func initPhysics() {
+
+	space = chipmunk.NewSpace()
+	space.Gravity = vect.Vect{0, -900}
 }
 
 func processInput() {
@@ -53,8 +68,8 @@ func processInput() {
 func updateEntities() {
 	//Update player entities
 	for _, p := range players {
-		p.e.X += p.e.mov.x * updateDeltaTime
-		p.e.Y += p.e.mov.y * updateDeltaTime
+		p.e.X += p.e.mov.x * updateDeltaTime * 5
+		p.e.Y += p.e.mov.y * updateDeltaTime * 5
 	}
 }
 

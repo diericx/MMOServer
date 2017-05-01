@@ -92,6 +92,12 @@ func Send() {
 
 			for _, p2 := range players {
 				entitiesToSend[i] = *p2.e
+				if p == p2 {
+					entitiesToSend[i].CurrentPlayer = true
+				} else {
+					entitiesToSend[i].CurrentPlayer = false
+				}
+
 				i++
 			}
 			statePacket.Entities = entitiesToSend
