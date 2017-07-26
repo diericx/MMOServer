@@ -11,7 +11,7 @@ import (
 )
 
 //ListenAddress The listen address for the server
-var ListenAddress = "127.0.0.1:7778"
+var ListenAddress = "10.5.15.229:7778"
 
 //BufSize The buffer size for receiving data
 var bufSize = 2048
@@ -59,6 +59,7 @@ func Listen() {
 		n, addr, err := conn.ReadFromUDP(buf)
 		CheckError(err)
 
+		//deseralize
 		var pID GetPacketID
 		err = msgpack.Unmarshal(buf[:n], &pID)
 		CheckError(err)
@@ -86,13 +87,13 @@ func Send() {
 		w := ForLoopWaiter{start: time.Now()}
 		for _, p := range players {
 
-			var entitiesToSend = make([]Entity, len(players), len(players))
+			var entitiesToSend = make([]Entity, len(entities), len(entities))
 			var statePacket StatePacket
 			i := 0
 
-			for _, p2 := range players {
-				entitiesToSend[i] = *p2.e
-				if p == p2 {
+			for _, e := range entities {
+				entitiesToSend[i] = *e
+				if *p.e == *e {
 					entitiesToSend[i].CurrentPlayer = true
 				} else {
 					entitiesToSend[i].CurrentPlayer = false
@@ -100,6 +101,7 @@ func Send() {
 
 				i++
 			}
+
 			statePacket.Entities = entitiesToSend
 			//---vmihailenco---
 			b, err := msgpack.Marshal(statePacket)

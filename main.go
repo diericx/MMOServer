@@ -15,7 +15,7 @@ var space *chipmunk.Space
 var inputChan = make(chan InputPacket, chanBufSize)
 
 //FrameWaitTime time between frames
-var updateFrameWaitTime float64 = 100
+var updateFrameWaitTime float64 = 20
 var updateDeltaTime = float32(updateFrameWaitTime) / 1000
 var sendFrameWaitTime float64 = 100
 var sendDeltaTime = float32(sendFrameWaitTime) / 1000
@@ -38,6 +38,9 @@ func main() {
 	go Listen()
 	go Send()
 
+	//set up ball
+	var _ = NewBall(vect.Vect{0, 0})
+
 	for {
 		w := ForLoopWaiter{start: time.Now()}
 
@@ -54,7 +57,7 @@ func initPhysics() {
 
 	space = chipmunk.NewSpace()
 	space.Gravity = vect.Vect{0, 0}
-	space.SetDamping(vect.Float(0.1))
+	space.SetDamping(vect.Float(0.2))
 
 }
 
@@ -74,9 +77,16 @@ func updateEntities() {
 		p.e.X = float32(p.e.body.Position().X)
 		p.e.Y = float32(p.e.body.Position().Y)
 		// set velocity
-		p.e.body.AddVelocity(p.e.mov.x, p.e.mov.y)
+		p.e.body.AddVelocity(p.e.mov.x/2, p.e.mov.y/2)
 		//p.e.X += p.e.mov.x * updateDeltaTime * 5
 		//p.e.Y += p.e.mov.y * updateDeltaTime * 5
+	}
+
+	//update balls
+	for _, b := range balls {
+		// update exported values
+		b.e.X = float32(b.e.body.Position().X)
+		b.e.Y = float32(b.e.body.Position().Y)
 	}
 }
 
