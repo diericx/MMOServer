@@ -4,11 +4,12 @@ defmodule Mmoserver do
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
-    IO.puts "Startin Server..."
+    IO.puts "Listening for packets..."
 
     children = [
       # We will add our children here later
-      worker(Mmoserver.MessageReceiver, [])
+      worker(Mmoserver.MessageReceiver, []),
+      worker(Mmoserver.Main, [])
     ]
 
     # Start the main supervisor, and restart failed children individually

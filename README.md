@@ -19,3 +19,8 @@ Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_do
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/mmoserver](https://hexdocs.pm/mmoserver).
 
+## Commands
+
+to run: mix run --no-halt
+
+to get the IEX Terminal: iex -S mix
