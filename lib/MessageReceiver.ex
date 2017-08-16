@@ -1,3 +1,4 @@
+# MESSAGERECEIVER.EX
 defmodule Mmoserver.MessageReceiver do
   use GenServer
   require Logger
@@ -12,7 +13,7 @@ defmodule Mmoserver.MessageReceiver do
 
   # Handle UDP data
   def handle_info({:udp, _socket, _ip, _port, data}, state) do
-    message = parse_packet(data)
+    parse_packet(data)
     # Logger.info "Received a secret message! " <> inspect(message)
     {:noreply, state}
   end
@@ -36,5 +37,8 @@ defmodule Mmoserver.MessageReceiver do
     IO.puts "Packet ID:"
     IO.puts packetID
     IO.puts x
+
+    # send data to main
+    Mmoserver.Main.handle_data(vars)
   end
 end

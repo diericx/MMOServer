@@ -4,18 +4,31 @@ defmodule Mmoserver.Main do
   @tickDelay 33
 
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, :ok, opts)
+    GenServer.start_link(__MODULE__, [], name: Main)
   end
 
-  def init (:ok) do
+  def init (state) do
 
     IO.puts "Main Server Loop started..."
 
     # start the main loop, parameter is the initial tick value
     mainLoop(0)
 
-    # return
+    spawn fn -> IO.puts "got here" end
+
+    # return, why 1??
     {:ok, 1}
+  end
+
+  def handle_data(data) do
+    GenServer.cast(:main, {:handle_data, data})
+  end
+
+  def handle_info({:handle_data, data}, state) do
+    # my_function(data)
+    IO.puts "Got here2"
+    IO.puts inspect(data)
+    {:noreply, state}
   end
 
   # calls respective game functions

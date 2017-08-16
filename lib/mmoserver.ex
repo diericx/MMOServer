@@ -1,3 +1,4 @@
+# MMOSERVER.EX
 defmodule Mmoserver do
   use Application
 
@@ -8,8 +9,9 @@ defmodule Mmoserver do
 
     children = [
       # We will add our children here later
-      worker(Mmoserver.MessageReceiver, []),
-      worker(Mmoserver.Main, [])
+      
+      worker(Mmoserver.Main, []),
+      worker(Mmoserver.MessageReceiver, [])
     ]
 
     # Start the main supervisor, and restart failed children individually
